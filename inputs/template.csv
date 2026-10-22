@@ -1,0 +1,5 @@
+date,entity,metric,value,unit,data_version,validated
+2026-09-30,volatility,level,14.28,index,v1,FALSE
+2026-09-30,volatility,z_score,-1.63,sd,v1,FALSE
+2026-09-30,volatility,chg_3m,,index,v1,FALSE
+2026-09-30,volatility,chg_1y,,index,v1,FALSE
