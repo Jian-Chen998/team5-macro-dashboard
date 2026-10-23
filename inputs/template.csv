@@ -1,5 +1,5 @@
-date,entity,metric,value,unit,data_version,validated
-2026-09-30,volatility,level,14.28,index,v1,FALSE
-2026-09-30,volatility,z_score,-1.63,sd,v1,FALSE
-2026-09-30,volatility,chg_3m,,index,v1,FALSE
-2026-09-30,volatility,chg_1y,,index,v1,FALSE
+date,entity,metric,value,unit,release_id,data_status,validated
+2026-09,real_rate,level,0.0185,decimal,data_v1.0,real,FALSE
+2026-09,real_rate,z_score,0.80,sd,data_v1.0,real,FALSE
+2026-09,real_rate,chg_3m,0.0020,decimal,data_v1.0,real,FALSE
+2026-09,real_rate,chg_1y,,decimal,data_v1.0,real,FALSE

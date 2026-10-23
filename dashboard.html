@@ -62,14 +62,14 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 <div class="wrap">
   <h1>Cross-Asset Macro Risk Factor Dashboard</h1>
   <p class="sub" id="sub"></p>
-  <div class="banner" id="demoBanner"><b>Illustrative layout data.</b> Rows tagged "illustrative" are placeholders, not real market values. They show how the page will look once each engine reports.</div>
+  <div class="banner" id="demoBanner"><b>Placeholder preview.</b> Rows tagged PLACEHOLDER are made-up numbers, not real market values. They show how the page will look once each engine reports.</div>
 
   <div class="takeaway"><h2>Key takeaway</h2><p id="takeaway"></p></div>
 
   <div class="controls noprint">
     <label class="btn" for="csvFiles">Load engine CSV files</label>
     <input id="csvFiles" type="file" accept=".csv,text/csv" multiple>
-    <button id="demoBtn" type="button" aria-pressed="false">Preview layout with illustrative data</button>
+    <button id="demoBtn" type="button" aria-pressed="false">Preview layout with placeholder data</button>
     <button id="clearBtn" type="button">Clear loaded data</button>
     <button id="tplBtn" type="button">Download CSV template</button>
     <button id="expBtn" type="button">Export table (CSV)</button>
@@ -88,9 +88,10 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
   <ul class="notes">
     <li><b>Scale.</b> Every engine reports a Z-score on the same &minus;3 to +3 scale. Zero is historical equilibrium.</li>
     <li><b>Long-term expectations vs short-term signals.</b> Long-term rows describe what markets are paying investors to hold risk over years. Short-term rows are signals that can change quickly and are poor predictors of near-term direction on their own.</li>
-    <li><b>Changes.</b> 3M and 1Y columns show the change in the level over that period, in the unit shown.</li>
+    <li><b>Units.</b> Following Team 1's conventions, rates and returns are stored as decimals (0.025 means 2.5%) and shown here as percent. 3M and 1Y columns show the change in the level over that period: percentage points (pp) for decimal series, index points otherwise.</li>
+    <li><b>Data status.</b> Every row carries Team 1's <code>data_status</code>: real, synthetic or placeholder. Only real rows count as reporting; synthetic and placeholder rows are labelled and should not be read as market signals.</li>
     <li><b>Validation.</b> "Checked" means Team 4 has validated the result. All other rows are shown as not yet validated.</li>
-    <li><b>Sources.</b> Each row lists its planned source. The data date and version come from the loaded CSV files.</li>
+    <li><b>Sources.</b> Each row lists its planned source. The data date and <code>release_id</code> come from the loaded CSV files.</li>
     <li><b>Volatility row.</b> Level 14.28, standard Z-score &minus;0.66 and downside Z-score &minus;1.63 come from the strategy memo of Sep 22, 2026 (10-year mean about 19.50; standard deviation about 7.90; downside deviation about 3.20).</li>
   </ul>
 </div>
@@ -98,27 +99,29 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 <script>
 // ---------- Configuration ----------
 var ENGINES = [
-  {id:'real_rate',    group:'long',  name:'Real Treasury rate',        owner:'D', unit:'%',  source:'FRED: DGS10, CPIAUCSL, CPILFESL (planned)'},
-  {id:'breakeven',    group:'long',  name:'Expected inflation (break-even)', owner:'D', unit:'%', source:'FRED: DGS5, DGS10, DFII5, DFII10 (planned)'},
-  {id:'term_premium', group:'long',  name:'Bond term premium',         owner:'D', unit:'%',  source:'NY Fed ACM, FRED ACMTP10 (planned)'},
-  {id:'erp',          group:'long',  name:'Equity risk premium',       owner:'C', unit:'%',  source:'Shiller CAPE, FRED DGS10 (planned)'},
-  {id:'volatility',   group:'short', name:'Volatility regime (VIX)',   owner:'C', unit:'index', source:'FRED VIXCLS (planned); strategy memo, Sep 22, 2026'},
-  {id:'momentum',     group:'short', name:'Equity momentum',           owner:'C', unit:'%',  source:'Yahoo Finance: ^GSPC, ^NDX (planned)'},
-  {id:'yield_curve',  group:'short', name:'Yield curve (2s10s)',       owner:'D', unit:'%',  source:'FRED: DGS10, DGS2 (planned)'},
-  {id:'credit',       group:'short', name:'Credit risk premium',       owner:'E', unit:'%',  source:'ICE BofA HY/IG OAS via FRED (planned)'}
+  {id:'real_rate',    group:'long',  name:'Real Treasury rate',        owner:'D', unit:'decimal', source:'FRED: DGS10, CPIAUCSL, CPILFESL (planned)'},
+  {id:'breakeven',    group:'long',  name:'Expected inflation (break-even)', owner:'D', unit:'decimal', source:'FRED: DGS5, DGS10, DFII5, DFII10 (planned)'},
+  {id:'term_premium', group:'long',  name:'Bond term premium',         owner:'D', unit:'decimal', source:'NY Fed ACM, FRED ACMTP10 (planned)'},
+  {id:'erp',          group:'long',  name:'Equity risk premium',       owner:'C', unit:'decimal', source:'Shiller CAPE, FRED DGS10 (planned)'},
+  {id:'volatility',   group:'short', name:'Volatility regime (VIX)',   owner:'C', unit:'index',   source:'FRED VIXCLS (planned); strategy memo, Sep 22, 2026'},
+  {id:'momentum',     group:'short', name:'Equity momentum',           owner:'C', unit:'decimal', source:'Yahoo Finance: ^GSPC, ^NDX (planned)'},
+  {id:'yield_curve',  group:'short', name:'Yield curve (2s10s)',       owner:'D', unit:'decimal', source:'FRED: DGS10, DGS2 (planned)'},
+  {id:'credit',       group:'short', name:'Credit risk premium',       owner:'E', unit:'decimal', source:'ICE BofA HY/IG OAS via FRED (planned)'}
 ];
 var GROUPS = {long:'Long-term expectations', short:'Short-term signals'};
-var HEADER = 'date,entity,metric,value,unit,data_version,validated';
+// Column names follow Team 1's contract: release_id and data_status (real | synthetic | placeholder).
+var HEADER = 'date,entity,metric,value,unit,release_id,data_status,validated';
+var STATUS_VALUES = ['real','synthetic','placeholder'];
 var DEFAULT_CSV = HEADER + '\n' +
-  '2026-09-22,volatility,level,14.28,index,memo-2026-09-22,FALSE\n' +
-  '2026-09-22,volatility,z_score,-1.63,sd,memo-2026-09-22,FALSE\n' +
-  '2026-09-22,volatility,z_score_standard,-0.66,sd,memo-2026-09-22,FALSE\n';
-// Placeholder values used only by the "illustrative" preview. Not real data.
+  '2026-09-22,volatility,level,14.28,index,client_memo_2026-09-22,real,FALSE\n' +
+  '2026-09-22,volatility,z_score,-1.63,sd,client_memo_2026-09-22,real,FALSE\n' +
+  '2026-09-22,volatility,z_score_standard,-0.66,sd,client_memo_2026-09-22,real,FALSE\n';
+// Placeholder values used only by the preview button. Not real data. Decimals, like Team 1's tables.
 var DEMO = {
-  real_rate:{level:1.9,z:0.8,c3:0.2,c1:0.5}, breakeven:{level:2.3,z:0.1,c3:0.0,c1:-0.1},
-  term_premium:{level:0.6,z:-0.4,c3:-0.1,c1:0.2}, erp:{level:0.9,z:-1.7,c3:-0.7,c1:-1.3},
-  momentum:{level:6.0,z:2.1,c3:1.0,c1:2.4}, yield_curve:{level:0.4,z:-0.3,c3:0.2,c1:0.6},
-  credit:{level:3.1,z:-1.6,c3:-0.2,c1:-0.5}
+  real_rate:{level:0.019,z:0.8,c3:0.002,c1:0.005}, breakeven:{level:0.023,z:0.1,c3:0.0,c1:-0.001},
+  term_premium:{level:0.006,z:-0.4,c3:-0.001,c1:0.002}, erp:{level:0.009,z:-1.7,c3:-0.007,c1:-0.013},
+  momentum:{level:0.06,z:2.1,c3:0.01,c1:0.024}, yield_curve:{level:0.004,z:-0.3,c3:0.002,c1:0.006},
+  credit:{level:0.031,z:-1.6,c3:-0.002,c1:-0.005}
 };
 
 // ---------- State ----------
@@ -132,6 +135,11 @@ function parseCSV(text){
   return lines.slice(1).map(function(l){
     var c = splitLine(l), o = {};
     head.forEach(function(h,i){o[h] = (c[i]||'').trim();});
+    // Accept Team 1's names and our earlier ones: period (YYYY-MM) for date, data_version for release_id.
+    o.date = o.date || o.period || '';
+    o.release_id = o.release_id || o.data_version || '';
+    var st = (o.data_status||'').toLowerCase();
+    o.data_status = STATUS_VALUES.indexOf(st) >= 0 ? st : 'unknown';
     return o;
   });
 }
@@ -152,7 +160,7 @@ function latest(){
   rows.forEach(function(r){
     var v = parseFloat(r.value); if(isNaN(v)) return;
     var k = r.entity+'|'+r.metric;
-    if(!m[k] || r.date >= m[k].date) m[k] = {date:r.date, value:v, unit:r.unit, version:r.data_version, validated:String(r.validated).toUpperCase()==='TRUE'};
+    if(!m[k] || r.date >= m[k].date) m[k] = {date:r.date, value:v, unit:r.unit, release:r.release_id, status:r.data_status, validated:String(r.validated).toUpperCase()==='TRUE'};
   });
   return m;
 }
@@ -160,17 +168,30 @@ function get(m, id, metric){ return m[id+'|'+metric]; }
 
 function zone(z){ return z < -1.5 ? 'comp' : (z > 1.5 ? 'exh' : 'mid'); }
 function zoneLabel(z){ return z < -1.5 ? 'Compression' : (z > 1.5 ? 'Exhaustion' : 'Normal'); }
-function fmt(v, d){ return (v===undefined||v===null) ? '—' : v.toFixed(d===undefined?2:d); }
-function sgn(v){ return (v===undefined||v===null) ? '—' : (v>0?'+':(v<0?'−':'')) + Math.abs(v).toFixed(2); }
-function zfmt(v){ return (v<0?'−':(v>0?'+':'')) + Math.abs(v).toFixed(2); }
+function sign(v){ return v>0?'+':(v<0?'−':''); }
+function zfmt(v){ return sign(v) + Math.abs(v).toFixed(2); }
+// Decimal series are shown as percent; changes in decimal series as percentage points.
+function fmtLevel(v, unit){
+  if(v===undefined||v===null) return '—';
+  if(unit==='decimal') return (v*100).toFixed(2)+'%';
+  return v.toFixed(2)+(unit?' <span class="small" style="display:inline">'+unit+'</span>':'');
+}
+function fmtChg(v, unit){
+  if(v===undefined||v===null) return '—';
+  if(unit==='decimal') return sign(v)+(Math.abs(v)*100).toFixed(2)+' pp';
+  return sign(v)+Math.abs(v).toFixed(2);
+}
+var STATUS_LABEL = {real:'Real', synthetic:'Synthetic', placeholder:'Placeholder', unknown:'Status missing'};
 
 function state(e, m){
   var z=get(m,e.id,'z_score'), lv=get(m,e.id,'level'), c3=get(m,e.id,'chg_3m'), c1=get(m,e.id,'chg_1y'), zs=get(m,e.id,'z_score_standard');
+  var head = z||lv||{};
   var o = {e:e, z:z&&z.value, lv:lv&&lv.value, c3:c3&&c3.value, c1:c1&&c1.value, zs:zs&&zs.value,
-           unit:(lv&&lv.unit)||e.unit, date:(z||lv||{}).date, version:(z||lv||{}).version, validated:!!(z&&z.validated), demo:false};
+           unit:(lv&&lv.unit)||e.unit, date:head.date, release:head.release, status:head.status,
+           validated:!!(z&&z.validated), demo:false};
   if(o.z===undefined && demoOn && DEMO[e.id]){
     var d = DEMO[e.id];
-    o.z=d.z; o.lv=d.level; o.c3=d.c3; o.c1=d.c1; o.unit=e.unit; o.date=''; o.version='illustrative'; o.demo=true;
+    o.z=d.z; o.lv=d.level; o.c3=d.c3; o.c1=d.c1; o.unit=e.unit; o.date=''; o.release='preview'; o.status='placeholder'; o.demo=true;
   }
   return o;
 }
@@ -179,29 +200,31 @@ function state(e, m){
 function render(){
   var m = latest();
   var st = ENGINES.map(function(e){return state(e,m);});
-  var reporting = st.filter(function(s){return s.z!==undefined;});
-  var real = reporting.filter(function(s){return !s.demo;});
+  var shown = st.filter(function(s){return s.z!==undefined;});
+  var real = shown.filter(function(s){return s.status==='real';});
+  var notReal = shown.filter(function(s){return s.status!=='real';});
 
   document.getElementById('demoBanner').className = 'banner' + (demoOn?' on':'');
   var dates = real.map(function(s){return s.date;}).filter(Boolean).sort();
-  var vers = real.map(function(s){return s.version;}).filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i;});
+  var rels = real.map(function(s){return s.release;}).filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i;});
   document.getElementById('sub').textContent =
-    (dates.length ? 'Latest data date: '+dates[dates.length-1]+' · ' : 'No data loaded · ') +
-    (vers.length ? 'Data version: '+vers.join(', ')+' · ' : '') +
-    real.length+' of '+ENGINES.length+' engines reporting';
+    (dates.length ? 'Latest data date: '+dates[dates.length-1]+' · ' : 'No real data loaded · ') +
+    (rels.length ? 'Release: '+rels.join(', ')+' · ' : '') +
+    real.length+' of '+ENGINES.length+' engines reporting real data';
 
-  // takeaway
-  var comp = reporting.filter(function(s){return zone(s.z)==='comp';}).map(function(s){return s.e.name;});
-  var exh = reporting.filter(function(s){return zone(s.z)==='exh';}).map(function(s){return s.e.name;});
-  var t = reporting.length+' of '+ENGINES.length+' engines '+(demoOn?'shown (including illustrative values)':'reporting')+'. ';
-  if(!comp.length && !exh.length) t += 'None is in a flagged zone.';
-  else {
+  // takeaway: zones are read from real rows only
+  var comp = real.filter(function(s){return zone(s.z)==='comp';}).map(function(s){return s.e.name;});
+  var exh = real.filter(function(s){return zone(s.z)==='exh';}).map(function(s){return s.e.name;});
+  var t = real.length+' of '+ENGINES.length+' engines reporting real data. ';
+  if(real.length){
+    if(!comp.length && !exh.length) t += 'None is in a flagged zone. ';
     if(comp.length) t += 'In the compression zone: '+comp.join(', ')+'. ';
-    if(exh.length) t += 'In the exhaustion zone: '+exh.join(', ')+'.';
+    if(exh.length) t += 'In the exhaustion zone: '+exh.join(', ')+'. ';
   }
   var v = state(ENGINES[4], m);
+  if(v.z!==undefined && v.status==='real' && zone(v.z)==='comp') t += 'Per the strategy memo, a downside Z-score this low suggests equity hedges are structurally cheap. ';
+  if(notReal.length) t += notReal.length+' more '+(notReal.length===1?'row is':'rows are')+' synthetic, placeholder or missing a data status, and '+(notReal.length===1?'is':'are')+' not read as signals.';
   t = t.trim();
-  if(v.z!==undefined && !v.demo && zone(v.z)==='comp') t += ' Per the strategy memo, a downside Z-score this low suggests equity hedges are structurally cheap.';
   document.getElementById('takeaway').textContent = t;
 
   // tables
@@ -216,13 +239,16 @@ function render(){
       html += '<tr><td class="eng">'+s.e.name+
         '<span class="small">Owner '+s.e.owner+' · '+s.e.source+'</span>'+
         (s.zs!==undefined ? '<span class="small">Standard Z-score: '+zfmt(s.zs)+'</span>' : '')+'</td>'+
-        '<td class="num">'+(has||s.lv!==undefined ? fmt(s.lv)+' <span class="small" style="display:inline">'+(s.unit||'')+'</span>' : '—')+'</td>'+
+        '<td class="num">'+fmtLevel(s.lv, s.unit)+'</td>'+
         '<td>'+(has ? '<div class="gauge" role="img" aria-label="Z-score '+zfmt(s.z)+', '+zoneLabel(s.z)+'"><span class="zero"></span><span class="dot '+zn+'" style="left:'+pos+'%"></span></div><div class="axis"><span>−3</span><span>0</span><span>+3</span></div>'
                     : '<span class="small">Awaiting data from owner '+s.e.owner+'</span>')+'</td>'+
         '<td class="num">'+(has?zfmt(s.z):'—')+'</td>'+
-        '<td class="num">'+sgn(s.c3)+'</td><td class="num">'+sgn(s.c1)+'</td>'+
+        '<td class="num">'+fmtChg(s.c3, s.unit)+'</td><td class="num">'+fmtChg(s.c1, s.unit)+'</td>'+
         '<td>'+(has?'<span class="pill '+zn+'">'+zoneLabel(s.z)+'</span>':'<span class="pill wait">No data</span>')+'</td>'+
-        '<td>'+(s.demo?'<span class="tag">ILLUSTRATIVE</span>':(has?(s.validated?'Checked':'Not yet validated'):''))+'</td></tr>';
+        '<td>'+(!has ? '' : (s.status==='real'
+              ? 'Real · '+(s.validated?'Checked':'Not yet validated')
+              : '<span class="tag">'+STATUS_LABEL[s.status||'unknown'].toUpperCase()+'</span>'))+
+        (has && s.release ? '<span class="small">'+s.release+'</span>' : '')+'</td></tr>';
     });
     html += '</tbody></table></div>';
   });
@@ -233,7 +259,7 @@ function render(){
   if(vol.z!==undefined && cr.z!==undefined){
     var on = vol.z < -1.5 && cr.z < -1.5;
     j.innerHTML = '<b>Joint warning (low VIX + tight credit spreads): '+(on?'triggered':'not triggered')+'.</b> '+
-      'VIX Z '+zfmt(vol.z)+', credit Z '+zfmt(cr.z)+'. Both below −1.5 together is the strategy memo\'s signal of possible capital misallocation.'+(vol.demo||cr.demo?' (Includes illustrative values.)':'');
+      'VIX Z '+zfmt(vol.z)+', credit Z '+zfmt(cr.z)+'. Both below −1.5 together is the strategy memo\'s signal of possible capital misallocation.'+(vol.status!=='real'||cr.status!=='real'?' (Includes data that is not marked real, so this is not a real signal.)':'');
   } else {
     j.innerHTML = '<b>Joint warning (low VIX + tight credit spreads): awaiting data.</b> It needs both the volatility and credit engines to report.';
   }
@@ -260,14 +286,18 @@ document.getElementById('demoBtn').addEventListener('click', function(){
 });
 document.getElementById('clearBtn').addEventListener('click', function(){ rows = parseCSV(DEFAULT_CSV); render(); });
 document.getElementById('tplBtn').addEventListener('click', function(){
-  var ex = HEADER+'\n2026-09-30,volatility,level,14.28,index,v1,FALSE\n2026-09-30,volatility,z_score,-1.63,sd,v1,FALSE\n2026-09-30,volatility,chg_3m,0,index,v1,FALSE\n2026-09-30,volatility,chg_1y,0,index,v1,FALSE\n';
+  var ex = HEADER+'\n'+
+    '2026-09,real_rate,level,0.0185,decimal,data_v1.0,real,FALSE\n'+
+    '2026-09,real_rate,z_score,0.80,sd,data_v1.0,real,FALSE\n'+
+    '2026-09,real_rate,chg_3m,0.0020,decimal,data_v1.0,real,FALSE\n'+
+    '2026-09,real_rate,chg_1y,,decimal,data_v1.0,real,FALSE\n';
   download('dashboard_template.csv', ex);
 });
 document.getElementById('expBtn').addEventListener('click', function(){
-  var m = latest(), out = ['engine,level,unit,z_score,chg_3m,chg_1y,signal,validated,date,data_version'];
+  var m = latest(), out = ['engine,level,unit,z_score,chg_3m,chg_1y,signal,data_status,validated,date,release_id'];
   ENGINES.forEach(function(e){
     var s = state(e,m); if(s.z===undefined) return;
-    out.push([e.name,s.lv===undefined?'':s.lv,s.unit,s.z,s.c3===undefined?'':s.c3,s.c1===undefined?'':s.c1,zoneLabel(s.z),s.validated,s.date,s.version].join(','));
+    out.push([e.name,s.lv===undefined?'':s.lv,s.unit,s.z,s.c3===undefined?'':s.c3,s.c1===undefined?'':s.c1,zoneLabel(s.z),s.status,s.validated,s.date,s.release].join(','));
   });
   download('dashboard_export.csv', out.join('\n')+'\n');
 });
