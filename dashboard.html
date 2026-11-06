@@ -70,9 +70,8 @@
 :root[data-look="terminal"] .tooltip .tv,:root[data-look="terminal"] .ticker{font-family:Consolas,"SFMono-Regular",Menlo,monospace}
 :root[data-look="terminal"] .eyebrow,:root[data-look="terminal"] th,:root[data-look="terminal"] .cgroup{color:var(--chrome);opacity:.85}
 :root[data-look="terminal"] button.on{background:var(--chrome);color:#05070a}
-.ticker,.clock{display:none}
-:root[data-look="terminal"] .ticker{display:block}
-:root[data-look="terminal"] .clock{display:inline-flex}
+/* The :not() selector outranks .chip, so the clock stays hidden outside the terminal view */
+:root:not([data-look="terminal"]) .ticker, :root:not([data-look="terminal"]) .clock{display:none}
 .ticker{overflow:hidden;white-space:nowrap;border:1px solid var(--border);border-radius:6px;background:var(--surface);margin:0 0 16px;font-size:12px}
 .ticker .tt{display:inline-block;padding:7px 0;animation:tick 40s linear infinite}
 .ticker:hover .tt{animation-play-state:paused}
