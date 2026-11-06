@@ -48,6 +48,45 @@
   --ref:#6d6b65; --sug:#3987e5;
   --accent:#c3c2b7;
 }
+/* Terminal view: an opt-in dark trading-desk look. Data colors keep the validated dark-mode
+   values, so blue still means unusually low and orange unusually high. Cyan is chrome only. */
+:root[data-look="terminal"]{
+  color-scheme: dark;
+  --page:#05070a; --surface:#0b1016; --raised:#111821;
+  --ink:#e6edf3; --ink-2:#a8b3bf; --muted:#7d8996;
+  --grid:#16212c; --axis:#2a3a4a; --border:rgba(125,211,252,.16);
+  --low:#3987e5; --low-band:rgba(57,135,229,.16);
+  --high:#d95926; --high-band:rgba(217,89,38,.18);
+  --mid:#6d6b65; --mid-band:#0f1820;
+  --up:#0ca30c; --down:#e66767;
+  --ref:#6d6b65; --sug:#3987e5;
+  --chrome:#7dd3fc;
+}
+:root[data-look="terminal"] body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+:root[data-look="terminal"] h1,:root[data-look="terminal"] .card h2{text-transform:uppercase;letter-spacing:.06em;font-size:15px;color:var(--chrome)}
+:root[data-look="terminal"] h1{font-size:18px}
+:root[data-look="terminal"] .card,:root[data-look="terminal"] .tile{border-radius:6px;box-shadow:inset 0 1px 0 rgba(125,211,252,.06)}
+:root[data-look="terminal"] .tile .v,:root[data-look="terminal"] td.num,:root[data-look="terminal"] .track .val,
+:root[data-look="terminal"] .tooltip .tv,:root[data-look="terminal"] .ticker{font-family:Consolas,"SFMono-Regular",Menlo,monospace}
+:root[data-look="terminal"] .eyebrow,:root[data-look="terminal"] th,:root[data-look="terminal"] .cgroup{color:var(--chrome);opacity:.85}
+:root[data-look="terminal"] button.on{background:var(--chrome);color:#05070a}
+.ticker,.clock{display:none}
+:root[data-look="terminal"] .ticker{display:block}
+:root[data-look="terminal"] .clock{display:inline-flex}
+.ticker{overflow:hidden;white-space:nowrap;border:1px solid var(--border);border-radius:6px;background:var(--surface);margin:0 0 16px;font-size:12px}
+.ticker .tt{display:inline-block;padding:7px 0;animation:tick 40s linear infinite}
+.ticker:hover .tt{animation-play-state:paused}
+.ticker .ti{display:inline-block;padding:0 22px;border-right:1px solid var(--grid)}
+.ticker .ti b{color:var(--ink);margin-left:6px}
+.ticker .ti .nm{color:var(--ink-2)}
+@keyframes tick{from{transform:translateX(0)} to{transform:translateX(-50%)}}
+/* Bars grow from zero when the chart draws */
+.track .bar{transition:left .7s cubic-bezier(.2,.7,.2,1), width .7s cubic-bezier(.2,.7,.2,1)}
+.track .val{transition:opacity .4s ease .5s}
+@media (prefers-reduced-motion: reduce){
+  .ticker .tt{animation:none;white-space:normal}
+  .track .bar,.track .val{transition:none}
+}
 *{box-sizing:border-box}
 body{margin:0;background:var(--page);color:var(--ink);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
 .wrap{max-width:1180px;margin:0 auto;padding:28px 16px 56px}
@@ -167,8 +206,12 @@ select{font:inherit;font-size:13px;color:var(--ink);background:var(--surface);bo
       <h1>Cross-Asset Macro Risk Dashboard</h1>
       <p class="sub" id="sub"></p>
     </div>
-    <span class="chip" id="reviewChip">Numbers pending Team 4 review</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <span class="chip clock" id="clock" title="Your computer's clock, not the data date"></span>
+      <span class="chip" id="reviewChip">Numbers pending Team 4 review</span>
+    </div>
   </header>
+  <div class="ticker" id="ticker" aria-label="Signal ticker"></div>
   <div class="banner" id="demoBanner"><b>Layout preview.</b> Rows marked TEST use made-up numbers, not real market values.</div>
 
   <section class="card takeaway">
@@ -180,6 +223,7 @@ select{font:inherit;font-size:13px;color:var(--ink);background:var(--surface);bo
   <div class="tiles" id="tiles"></div>
 
   <div class="toolbar noprint">
+    <button id="lookBtn" type="button" aria-pressed="false">Terminal view</button>
     <button id="detailBtn" type="button" aria-pressed="false">Show sources and details</button>
     <label class="btn" for="csvFiles">Load data files</label>
     <input id="csvFiles" type="file" accept=".csv,text/csv" multiple>
@@ -416,12 +460,16 @@ function render(){
   var jointReady = vol.z!==undefined && cr.z!==undefined && vol.status==='real' && cr.status==='real';
   var jointOn = jointReady && vol.z < -1.5 && cr.z < -1.5;
   var nLow = real.filter(function(s){return zone(s.z)==='comp';}).length, nHigh = real.filter(function(s){return zone(s.z)==='exh';}).length;
-  document.getElementById('tiles').innerHTML =
-    tile('Signals with data', real.length+' <small>of '+ENGINES.length+'</small>', 'Real readings only') +
-    tile('<span class="key" style="background:var(--low)"></span>Unusually low', String(nLow), 'Below −1.5') +
-    tile('<span class="key" style="background:var(--high)"></span>Unusually high', String(nHigh), 'Above +1.5') +
+  var cnt = function(n){ return '<span class="cnt" data-n="'+n+'">'+n+'</span>'; };
+  var tiles = document.getElementById('tiles');
+  tiles.innerHTML =
+    tile('Signals with data', cnt(real.length)+' <small>of '+ENGINES.length+'</small>', 'Real readings only') +
+    tile('<span class="key" style="background:var(--low)"></span>Unusually low', cnt(nLow), 'Below −1.5') +
+    tile('<span class="key" style="background:var(--high)"></span>Unusually high', cnt(nHigh), 'Above +1.5') +
     tile('Combined warning', jointReady ? (jointOn ? 'On' : 'Off') : '—', jointReady ? 'Low VIX and tight credit together' : 'Needs VIX and credit data');
+  countUp(tiles);
 
+  renderTicker(st);
   renderChart(st);
   renderTable(st);
 
@@ -453,12 +501,13 @@ function renderChart(st){
       if(has){
         var p = pos(s.z), zn = zone(s.z), test = s.status!=='real' ? ' test' : '';
         var label = zfmt(s.z) + (s.status!=='real' ? ' TEST' : '');
+        // Bars start at zero and grow to their value (see growBars).
         if(s.z >= 0){
-          inner += '<span class="bar pos '+zn+test+'" style="left:50%;width:'+(p-50)+'%"></span>'+
-                   '<span class="val" style="left:calc('+p+'% + 6px)">'+label+'</span>';
+          inner += '<span class="bar pos '+zn+test+'" style="left:50%;width:0" data-l="50" data-w="'+(p-50)+'"></span>'+
+                   '<span class="val" style="left:calc('+p+'% + 6px);opacity:0">'+label+'</span>';
         } else {
-          inner += '<span class="bar neg '+zn+test+'" style="left:'+p+'%;width:'+(50-p)+'%"></span>'+
-                   '<span class="val" style="right:calc('+(100-p)+'% + 6px)">'+label+'</span>';
+          inner += '<span class="bar neg '+zn+test+'" style="left:50%;width:0" data-l="'+p+'" data-w="'+(50-p)+'"></span>'+
+                   '<span class="val" style="right:calc('+(100-p)+'% + 6px);opacity:0">'+label+'</span>';
         }
       } else {
         inner += '<span class="none">No data yet</span>';
@@ -473,6 +522,7 @@ function renderChart(st){
        '<div class="axisrow"><div></div><div class="zonenames"><span style="left:0">Unusually low</span><span style="left:50%;transform:translateX(-50%)">Normal</span><span style="right:0">Unusually high</span></div></div>';
   var el = document.getElementById('chart');
   el.innerHTML = h;
+  growBars(el);
   Array.prototype.forEach.call(el.querySelectorAll('.crow'), function(r){
     var s = st[+r.getAttribute('data-i')];
     var show = function(x, y){ showTip(s, x, y); };
@@ -481,6 +531,51 @@ function renderChart(st){
     r.addEventListener('focus', function(){ var b = r.getBoundingClientRect(); show(b.left + b.width*0.6, b.top + b.height); });
     r.addEventListener('blur', hideTip);
   });
+}
+var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function growBars(el){
+  var go = function(){
+    Array.prototype.forEach.call(el.querySelectorAll('.bar'), function(b){ b.style.left = b.getAttribute('data-l')+'%'; b.style.width = b.getAttribute('data-w')+'%'; });
+    Array.prototype.forEach.call(el.querySelectorAll('.val'), function(v){ v.style.opacity = 1; });
+  };
+  // Force a layout at width 0, then set the final width so the CSS transition runs.
+  // No requestAnimationFrame: browsers pause it in background tabs, which would leave bars at zero.
+  if(!REDUCED) void el.offsetWidth;
+  go();
+}
+// Summary numbers count up from zero.
+function countUp(root){
+  Array.prototype.forEach.call(root.querySelectorAll('.cnt'), function(span){
+    var n = +span.getAttribute('data-n');
+    if(REDUCED || !n){ span.textContent = String(n); return; }
+    // Timed steps rather than requestAnimationFrame, and the final value is always written last,
+    // so a paused or throttled tab can never leave a wrong number on screen.
+    var t0 = Date.now();
+    var step = function(){
+      var k = Math.min(1, (Date.now() - t0) / 600);
+      span.textContent = String(k < 1 ? Math.round(n * (1 - Math.pow(1 - k, 3))) : n);
+      if(k < 1) setTimeout(step, 30);
+    };
+    step();
+  });
+}
+// Ticker for the terminal view: one item per signal, repeated once so the scroll loops seamlessly.
+var TICK = {real_rate:'REAL RATE', breakeven:'INFLATION EXP', term_premium:'TERM PREMIUM', erp:'EQUITY RISK PREM',
+            volatility:'VIX', momentum:'MOMENTUM', yield_curve:'CURVE 10Y-2Y', credit:'CREDIT SPREADS'};
+function renderTicker(st){
+  var items = st.map(function(s){
+    var body;
+    if(s.z===undefined) body = '<b style="color:var(--muted)">NO DATA</b>';
+    else {
+      var zn = zone(s.z), word = zn==='comp' ? 'LOW' : (zn==='exh' ? 'HIGH' : 'NORMAL');
+      var col = zn==='comp' ? 'var(--low)' : (zn==='exh' ? 'var(--high)' : 'var(--muted)');
+      body = '<b>'+zfmt(s.z)+'</b> <span style="color:'+col+';font-weight:650">'+word+'</span>'+
+             (s.c3!==undefined && s.c3!==null ? ' '+fmtChg(s.c3, s.unit) : '')+
+             (s.status!=='real' ? ' <span class="flag">TEST</span>' : '');
+    }
+    return '<span class="ti"><span class="nm">'+TICK[s.e.id]+'</span>'+body+'</span>';
+  }).join('');
+  document.getElementById('ticker').innerHTML = '<div class="tt">'+items+items+'</div>';
 }
 // Tooltip text is set with textContent: values can come from loaded CSV files.
 function showTip(s, x, y){
@@ -661,6 +756,24 @@ function download(name, text){
   a.href = URL.createObjectURL(new Blob([text],{type:'text/csv'}));
   a.download = name; document.body.appendChild(a); a.click(); a.remove();
 }
+// Terminal view toggle. The choice is remembered in this browser only; the page works without it.
+function setLook(on){
+  if(on) document.documentElement.setAttribute('data-look','terminal'); else document.documentElement.removeAttribute('data-look');
+  var b = document.getElementById('lookBtn');
+  b.classList.toggle('on', on); b.setAttribute('aria-pressed', on);
+  b.textContent = on ? 'Standard view' : 'Terminal view';
+  try{ localStorage.setItem('team5-look', on ? 'terminal' : 'standard'); }catch(e){}
+}
+document.getElementById('lookBtn').addEventListener('click', function(){
+  setLook(document.documentElement.getAttribute('data-look')!=='terminal');
+  render();
+});
+try{ if(localStorage.getItem('team5-look')==='terminal') setLook(true); }catch(e){}
+function tickClock(){
+  var d = new Date(), p = function(n){ return (n<10?'0':'')+n; };
+  document.getElementById('clock').textContent = 'LOCAL TIME ' + p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+}
+tickClock(); setInterval(tickClock, 1000);
 document.getElementById('detailBtn').addEventListener('click', function(){
   var on = document.body.classList.toggle('details');
   this.classList.toggle('on', on); this.setAttribute('aria-pressed', on);

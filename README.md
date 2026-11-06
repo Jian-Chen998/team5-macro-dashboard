@@ -69,8 +69,9 @@ Then load the CSV with **Load data files**. For Team 3, `--windows` picks the wi
 
 ## Using the page
 
+- **Terminal view**: a dark trading-desk look with a scrolling signal ticker and a local clock. The data colors stay the same: blue is unusually low, orange is unusually high. The choice is remembered in your browser. **Standard view** switches back.
 - **Load data files**: pick one or several CSVs. They are merged.
-- **Preview layout with placeholder data**: fills empty rows with made-up numbers tagged PLACEHOLDER. Never present these as real.
+- **Preview with placeholder data**: fills empty rows with made-up numbers tagged TEST. Never present these as real.
 - **Show sources and details**: shows owners, planned sources, release IDs and technical columns. They are hidden by default so the page reads cleanly for a portfolio manager.
 - **Export table (CSV)** includes a plain-language "what it means" column. **Print / save as PDF** prints what is on screen. **Download CSV template** appears with the details.
 
