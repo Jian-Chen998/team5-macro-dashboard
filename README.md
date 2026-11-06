@@ -46,12 +46,32 @@ Rules:
 
 ## Where to put your file
 
-Save it as `inputs/<entity>.csv`, for example `inputs/credit.csv`, and commit it to the repo. When the page is opened from its web address (GitHub Pages), it reads every `inputs/<entity>.csv` automatically. When you open `dashboard.html` as a local file, use the **Load engine CSV files** button instead.
+Save it as `inputs/<entity>.csv`, for example `inputs/credit.csv`, and commit it to the repo. When the page is opened from its web address (GitHub Pages), it reads every `inputs/<entity>.csv` automatically. When you open `dashboard.html` as a local file, use the **Load data files** button instead.
+
+## Adding Team 2 and Team 3 results
+
+The page also has an **Asset allocation** panel (Team 2) and a **Fund report cards** panel (Team 3). `adapters/convert.py` turns each team's output into the same CSV format. It uses only the Python standard library and contains no model logic.
+
+```bash
+# Team 2: dashboard_result.json comes from allocation_dashboard.export_result
+python adapters/convert.py team2 path/to/dashboard_result.json -o inputs/allocation.csv
+
+# Team 3: the run folder holds fit_stats.csv, coefficients.csv and performance.csv
+python adapters/convert.py team3 path/to/run_folder -o inputs/funds.csv
+```
+
+Then load the CSV with **Load data files**. For Team 3, `--windows` picks the windows (default `full,t36_now,t36_1y`) and `--model` picks the equity model (default `Carhart4`).
+
+- **Restricted data:** results built from Team 1's real release are restricted. `inputs/allocation.csv` and `inputs/funds.csv` are in `.gitignore`, so keep them out of this repo and share them only as your team agrees.
+- **Validated:** rows are marked not validated unless you pass `--team4-validated`, which is only for a file Team 4 has checked.
+- **Team 3 rules kept:** bond fund alpha is never shown, alpha stays monthly, and "insufficient history" is shown as no result.
+- **Samples:** `inputs/samples/` holds made-up files for testing the layout. They did not come from either team's code and are marked synthetic. `python adapters/make_samples.py` rebuilds them, and `python adapters/test_convert.py` runs the tests.
 
 ## Using the page
 
-- **Load engine CSV files**: pick one or several CSVs. They are merged.
+- **Load data files**: pick one or several CSVs. They are merged.
 - **Preview layout with placeholder data**: fills empty rows with made-up numbers tagged PLACEHOLDER. Never present these as real.
-- **Download CSV template**, **Export table (CSV)**, **Print / save as PDF**.
+- **Show sources and details**: shows owners, planned sources, release IDs and technical columns. They are hidden by default so the page reads cleanly for a portfolio manager.
+- **Export table (CSV)** includes a plain-language "what it means" column. **Print / save as PDF** prints what is on screen. **Download CSV template** appears with the details.
 
 `inputs/template.csv` is a starting file.

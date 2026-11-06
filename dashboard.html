@@ -16,102 +16,163 @@
   }
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Calibri,"Segoe UI",system-ui,sans-serif}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Calibri,"Segoe UI",system-ui,sans-serif}
 .wrap{max-width:1100px;margin:0 auto;padding:24px 16px 48px}
 h1{font:700 26px/1.2 Cambria,Georgia,serif;margin:0 0 4px}
 .sub{color:var(--muted);margin:0 0 16px}
 .banner{padding:10px 14px;border-radius:8px;background:var(--exh-bg);color:var(--ink);margin:0 0 14px;display:none}
 .banner.on{display:block}
-.takeaway{background:var(--panel);border-radius:12px;padding:16px 18px;margin:0 0 16px}
-.takeaway h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 4px}
-.takeaway p{margin:0;font-size:17px}
+.takeaway{background:var(--panel);border-radius:12px;padding:16px 18px;margin:0 0 12px}
+.takeaway h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.takeaway p{margin:0 0 4px;font-size:17px}
+.takeaway p.minor{font-size:14px;color:var(--muted);margin:0}
+.howto{font-size:14px;color:var(--muted);margin:0 0 16px}
+.howto b{color:var(--ink)}
 .controls{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
 button,.btn{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
 button:hover,.btn:hover{border-color:var(--comp)}
 button.on{background:var(--ink);color:var(--bg)}
 input[type=file]{display:none}
-h3{font:700 16px Cambria,Georgia,serif;margin:22px 0 8px}
+h3{font:700 16px Cambria,Georgia,serif;margin:22px 0 4px}
+.group-sub{font-size:13px;color:var(--muted);margin:0 0 8px}
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
-table{width:100%;border-collapse:collapse;min-width:820px}
-th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
+table{width:100%;border-collapse:collapse;min-width:860px}
+th{font-size:12px;letter-spacing:.03em;color:var(--muted);text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--panel);font-weight:600}
 td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
 tr:last-child td{border-bottom:0}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.meaning{min-width:220px;font-size:14px}
 .eng{font-weight:600}
 .small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
-.gauge{position:relative;height:14px;border-radius:7px;min-width:200px;
+.detail{display:none}
+body.details .detail{display:block}
+body.details th.detail, body.details td.detail{display:table-cell}
+.gauge{position:relative;height:14px;border-radius:7px;min-width:150px;
   background:linear-gradient(to right,var(--comp-bg) 0 25%,var(--neutral-bg) 25% 75%,var(--exh-bg) 75% 100%)}
 .gauge .zero{position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--muted)}
 .gauge .dot{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;transform:translate(-50%,-50%);border:2px solid var(--bg);background:var(--muted)}
 .dot.comp{background:var(--comp)} .dot.exh{background:var(--exh)} .dot.mid{background:var(--ink)}
 .axis{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:3px}
-.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;white-space:nowrap}
+.score{font-weight:700;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;white-space:nowrap;margin-bottom:3px}
 .pill.comp{background:var(--comp-bg);color:var(--comp)} .pill.exh{background:var(--exh-bg);color:var(--exh)}
 .pill.mid{background:var(--neutral-bg);color:var(--ink)} .pill.wait{background:transparent;color:var(--muted);border:1px dashed var(--line)}
 .tag{font-size:11px;color:var(--amber);font-weight:700}
 .joint{margin:16px 0 0;padding:12px 16px;border-radius:12px;border:1px solid var(--line)}
 .joint b{font-weight:700}
-.notes{margin-top:22px;font-size:13px;color:var(--muted)}
+.notes{margin-top:14px;font-size:13px;color:var(--muted);padding-left:20px}
 .notes li{margin:3px 0}
-.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin:0 0 8px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin:0 0 4px}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.section-title{font:700 20px Cambria,Georgia,serif;margin:36px 0 2px}
+.section-sub{color:var(--muted);margin:0 0 10px;font-size:14px}
+.waiting{padding:14px 16px;border:1px dashed var(--line);border-radius:12px;color:var(--muted)}
+.warn{padding:9px 14px;border-radius:8px;background:var(--exh-bg);margin:0 0 10px;font-size:14px}
+.tablewrap.narrow table{min-width:640px}
+.fund-controls{margin:0 0 10px;font-size:14px}
+select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 8px}
 @media print{ .controls,.noprint{display:none!important} .wrap{padding:0} body{font-size:12px} }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Cross-Asset Macro Risk Factor Dashboard</h1>
+  <h1>Cross-Asset Macro Risk Dashboard</h1>
   <p class="sub" id="sub"></p>
-  <div class="banner" id="demoBanner"><b>Placeholder preview.</b> Rows tagged PLACEHOLDER are made-up numbers, not real market values. They show how the page will look once each engine reports.</div>
+  <div class="banner" id="demoBanner"><b>Layout preview.</b> Rows tagged PLACEHOLDER are made-up numbers, not real market values.</div>
 
-  <div class="takeaway"><h2>Key takeaway</h2><p id="takeaway"></p></div>
+  <div class="takeaway"><h2>Key takeaway</h2><p id="takeaway"></p><p class="minor" id="coverage"></p></div>
+  <p class="howto"><b>How to read this page.</b> Each signal is scored against its own history, from &minus;3 to +3. A score near 0 is normal. Below &minus;1.5 is <b>unusually low</b>; above +1.5 is <b>unusually high</b>. The last column says what the reading means for a portfolio manager.</p>
 
   <div class="controls noprint">
-    <label class="btn" for="csvFiles">Load engine CSV files</label>
+    <button id="detailBtn" type="button" aria-pressed="false">Show sources and details</button>
+    <label class="btn" for="csvFiles">Load data files</label>
     <input id="csvFiles" type="file" accept=".csv,text/csv" multiple>
     <button id="demoBtn" type="button" aria-pressed="false">Preview layout with placeholder data</button>
     <button id="clearBtn" type="button">Clear loaded data</button>
-    <button id="tplBtn" type="button">Download CSV template</button>
     <button id="expBtn" type="button">Export table (CSV)</button>
     <button id="printBtn" type="button">Print / save as PDF</button>
+    <button id="tplBtn" type="button" class="detail">Download CSV template</button>
   </div>
 
   <div class="legend" aria-label="Legend">
-    <span><i style="background:var(--comp-bg)"></i>Compression zone (Z below &minus;1.5)</span>
-    <span><i style="background:var(--neutral-bg)"></i>Within normal range</span>
-    <span><i style="background:var(--exh-bg)"></i>Exhaustion zone (Z above +1.5)</span>
+    <span><i style="background:var(--comp-bg)"></i>Unusually low: below &minus;1.5 (the memo's compression zone)</span>
+    <span><i style="background:var(--neutral-bg)"></i>Normal range</span>
+    <span><i style="background:var(--exh-bg)"></i>Unusually high: above +1.5 (the memo's exhaustion zone)</span>
   </div>
 
   <div id="groups"></div>
   <div class="joint" id="joint"></div>
 
+  <h2 class="section-title">Asset allocation</h2>
+  <p class="section-sub">How the portfolio Team 2's model suggests differs from the reference portfolio.</p>
+  <div id="allocPanel"></div>
+
+  <h2 class="section-title">Fund report cards</h2>
+  <p class="section-sub">How each fund has performed, and what drives its returns. Prepared by Team 3.</p>
+  <div id="fundPanel"></div>
+
+  <h2 class="section-title">About the data</h2>
   <ul class="notes">
-    <li><b>Scale.</b> Every engine reports a Z-score on the same &minus;3 to +3 scale. Zero is historical equilibrium.</li>
-    <li><b>Long-term expectations vs short-term signals.</b> Long-term rows describe what markets are paying investors to hold risk over years. Short-term rows are signals that can change quickly and are poor predictors of near-term direction on their own.</li>
-    <li><b>Units.</b> Following Team 1's conventions, rates and returns are stored as decimals (0.025 means 2.5%) and shown here as percent. 3M and 1Y columns show the change in the level over that period: percentage points (pp) for decimal series, index points otherwise.</li>
-    <li><b>Data status.</b> Every row carries Team 1's <code>data_status</code>: real, synthetic or placeholder. Only real rows count as reporting; synthetic and placeholder rows are labelled and should not be read as market signals.</li>
-    <li><b>Validation.</b> "Checked" means Team 4 has validated the result. All other rows are shown as not yet validated.</li>
-    <li><b>Sources.</b> Each row lists its planned source. The data date and <code>release_id</code> come from the loaded CSV files.</li>
-    <li><b>Volatility row.</b> Level 14.28, standard Z-score &minus;0.66 and downside Z-score &minus;1.63 come from the strategy memo of Sep 22, 2026 (10-year mean about 19.50; standard deviation about 7.90; downside deviation about 3.20).</li>
+    <li><b>Long-term vs short-term.</b> Long-term signals show what markets pay investors to hold risk over years. Short-term signals can change quickly and do not predict near-term direction on their own.</li>
+    <li><b>Changes.</b> 3-month and 1-year columns show how much the reading moved, in percentage points (pp) for rates and spreads.</li>
+    <li><b>Review.</b> "Pending review" means Team 4 has not yet checked the number. Numbers may be updated after review.</li>
+    <li><b>VIX row.</b> The reading of 14.28 and score of &minus;1.63 come from the strategy memo of Sep 22, 2026. The memo measures VIX against its downside variation only; the usual score would be &minus;0.66.</li>
+    <li class="detail"><b>Data format.</b> Following Team 1's conventions, rates are stored as decimals (0.025 means 2.5%). Every row carries a <code>data_status</code> (real, synthetic or placeholder) and a <code>release_id</code>. Only real rows are read as signals.</li>
   </ul>
 </div>
 
 <script>
 // ---------- Configuration ----------
+// what: one line on what the signal measures. low/high: what an unusual reading means,
+// taken from the strategy memo where it says so.
 var ENGINES = [
-  {id:'real_rate',    group:'long',  name:'Real Treasury rate',        owner:'D', unit:'decimal', source:'FRED: DGS10, CPIAUCSL, CPILFESL (planned)'},
-  {id:'breakeven',    group:'long',  name:'Expected inflation (break-even)', owner:'D', unit:'decimal', source:'FRED: DGS5, DGS10, DFII5, DFII10 (planned)'},
-  {id:'term_premium', group:'long',  name:'Bond term premium',         owner:'D', unit:'decimal', source:'NY Fed ACM, FRED ACMTP10 (planned)'},
-  {id:'erp',          group:'long',  name:'Equity risk premium',       owner:'C', unit:'decimal', source:'Shiller CAPE, FRED DGS10 (planned)'},
-  {id:'volatility',   group:'short', name:'Volatility regime (VIX)',   owner:'C', unit:'index',   source:'FRED VIXCLS (planned); strategy memo, Sep 22, 2026'},
-  {id:'momentum',     group:'short', name:'Equity momentum',           owner:'C', unit:'decimal', source:'Yahoo Finance: ^GSPC, ^NDX (planned)'},
-  {id:'yield_curve',  group:'short', name:'Yield curve (2s10s)',       owner:'D', unit:'decimal', source:'FRED: DGS10, DGS2 (planned)'},
-  {id:'credit',       group:'short', name:'Credit risk premium',       owner:'E', unit:'decimal', source:'ICE BofA HY/IG OAS via FRED (planned)'}
+  {id:'real_rate', group:'long', name:'Real interest rate', owner:'D', unit:'decimal',
+   source:'FRED: DGS10, CPIAUCSL, CPILFESL (planned)',
+   what:'Treasury yield after inflation.',
+   low:'Real rates are unusually low: borrowing is cheap.',
+   high:'Real rates are unusually high. Per the memo, money is tight for corporate borrowers.'},
+  {id:'breakeven', group:'long', name:'Expected inflation', owner:'D', unit:'decimal',
+   source:'FRED: DGS5, DGS10, DFII5, DFII10 (planned)',
+   what:'Inflation the bond market expects (break-even rate).',
+   low:'Markets expect unusually low inflation.',
+   high:'Markets expect unusually high inflation. The memo watches this for a shift in the macro regime.'},
+  {id:'term_premium', group:'long', name:'Bond term premium', owner:'D', unit:'decimal',
+   source:'NY Fed ACM, FRED ACMTP10 (planned)',
+   what:'Extra pay investors demand to hold long-term bonds.',
+   low:'Investors accept unusually little pay for long bonds. Per the memo, demand for long bonds is strong.',
+   high:'Investors demand unusually high pay to hold long bonds.'},
+  {id:'erp', group:'long', name:'Equity risk premium', owner:'C', unit:'decimal',
+   source:'Shiller CAPE, FRED DGS10 (planned)',
+   what:'How much more stocks are expected to earn than Treasuries.',
+   low:'Stocks pay unusually little over bonds. Per the memo, equities may not compensate for their risk.',
+   high:'Stocks pay unusually much over bonds.'},
+  {id:'volatility', group:'short', name:'Stock market volatility (VIX)', owner:'C', unit:'index',
+   source:'FRED VIXCLS (planned); strategy memo, Sep 22, 2026',
+   what:'How much the market expects stocks to swing.',
+   low:'Markets are unusually calm. Per the memo, equity hedges such as index puts may be cheap.',
+   high:'Markets are unusually nervous: expected swings are large.'},
+  {id:'momentum', group:'short', name:'Stock market momentum', owner:'C', unit:'decimal',
+   source:'Yahoo Finance: ^GSPC, ^NDX (planned)',
+   what:'Strength of the recent stock market trend, adjusted for volatility.',
+   low:'The stock market trend is unusually weak.',
+   high:'The rally is unusually strong. Per the memo, the trend may be overextended.'},
+  {id:'yield_curve', group:'short', name:'Yield curve (10-year minus 2-year)', owner:'D', unit:'decimal',
+   source:'FRED: DGS10, DGS2 (planned)',
+   what:'Gap between long and short Treasury yields.',
+   low:'The curve is unusually flat or inverted, a classic recession warning.',
+   high:'The curve is unusually steep.'},
+  {id:'credit', group:'short', name:'Credit spreads', owner:'E', unit:'decimal',
+   source:'ICE BofA HY/IG OAS via FRED (planned)',
+   what:'Extra yield on corporate bonds over Treasuries.',
+   low:'Credit spreads are unusually tight. With low VIX, the memo reads this as a warning sign.',
+   high:'Credit spreads are unusually wide, a sign of credit stress.'}
 ];
-var GROUPS = {long:'Long-term expectations', short:'Short-term signals'};
+var GROUPS = {long:['Long-term signals','What markets pay investors to hold risk over years.'],
+              short:['Short-term signals','Readings that can change quickly.']};
 // Column names follow Team 1's contract: release_id and data_status (real | synthetic | placeholder).
 var HEADER = 'date,entity,metric,value,unit,release_id,data_status,validated';
-var STATUS_VALUES = ['real','synthetic','placeholder'];
+// mixed and hypothetical come from Team 2's reference and scenario records.
+var STATUS_VALUES = ['real','synthetic','placeholder','mixed','hypothetical'];
 var DEFAULT_CSV = HEADER + '\n' +
   '2026-09-22,volatility,level,14.28,index,client_memo_2026-09-22,real,FALSE\n' +
   '2026-09-22,volatility,z_score,-1.63,sd,client_memo_2026-09-22,real,FALSE\n' +
@@ -167,21 +228,28 @@ function latest(){
 function get(m, id, metric){ return m[id+'|'+metric]; }
 
 function zone(z){ return z < -1.5 ? 'comp' : (z > 1.5 ? 'exh' : 'mid'); }
-function zoneLabel(z){ return z < -1.5 ? 'Compression' : (z > 1.5 ? 'Exhaustion' : 'Normal'); }
+function zoneLabel(z){ return z < -1.5 ? 'Unusually low' : (z > 1.5 ? 'Unusually high' : 'Normal'); }
+function meaning(e, z){ return z < -1.5 ? e.low : (z > 1.5 ? e.high : 'Within its normal range.'); }
 function sign(v){ return v>0?'+':(v<0?'−':''); }
 function zfmt(v){ return sign(v) + Math.abs(v).toFixed(2); }
 // Decimal series are shown as percent; changes in decimal series as percentage points.
 function fmtLevel(v, unit){
   if(v===undefined||v===null) return '—';
   if(unit==='decimal') return (v*100).toFixed(2)+'%';
-  return v.toFixed(2)+(unit?' <span class="small" style="display:inline">'+unit+'</span>':'');
+  return v.toFixed(2);
 }
 function fmtChg(v, unit){
   if(v===undefined||v===null) return '—';
   if(unit==='decimal') return sign(v)+(Math.abs(v)*100).toFixed(2)+' pp';
   return sign(v)+Math.abs(v).toFixed(2);
 }
-var STATUS_LABEL = {real:'Real', synthetic:'Synthetic', placeholder:'Placeholder', unknown:'Status missing'};
+var STATUS_LABEL = {real:'Real', synthetic:'Synthetic', placeholder:'Placeholder', mixed:'Mixed', hypothetical:'Hypothetical', unknown:'Status missing'};
+function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function prettyDate(d){
+  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], p = String(d||'').split('-');
+  if(p.length < 2 || !mo[+p[1]-1]) return esc(d||'');
+  return (p[2] ? (+p[2])+' ' : '') + mo[+p[1]-1] + ' ' + p[0];
+}
 
 function state(e, m){
   var z=get(m,e.id,'z_score'), lv=get(m,e.id,'level'), c3=get(m,e.id,'chg_3m'), c1=get(m,e.id,'chg_1y'), zs=get(m,e.id,'z_score_standard');
@@ -206,63 +274,182 @@ function render(){
 
   document.getElementById('demoBanner').className = 'banner' + (demoOn?' on':'');
   var dates = real.map(function(s){return s.date;}).filter(Boolean).sort();
-  var rels = real.map(function(s){return s.release;}).filter(Boolean).filter(function(v,i,a){return a.indexOf(v)===i;});
   document.getElementById('sub').textContent =
-    (dates.length ? 'Latest data date: '+dates[dates.length-1]+' · ' : 'No real data loaded · ') +
-    (rels.length ? 'Release: '+rels.join(', ')+' · ' : '') +
-    real.length+' of '+ENGINES.length+' engines reporting real data';
+    (dates.length ? 'Data as of '+prettyDate(dates[dates.length-1]).replace(/&[^;]+;/g,'')+' · ' : 'No market data loaded yet · ') +
+    real.length+' of '+ENGINES.length+' signals have data';
 
-  // takeaway: zones are read from real rows only
-  var comp = real.filter(function(s){return zone(s.z)==='comp';}).map(function(s){return s.e.name;});
-  var exh = real.filter(function(s){return zone(s.z)==='exh';}).map(function(s){return s.e.name;});
-  var t = real.length+' of '+ENGINES.length+' engines reporting real data. ';
-  if(real.length){
-    if(!comp.length && !exh.length) t += 'None is in a flagged zone. ';
-    if(comp.length) t += 'In the compression zone: '+comp.join(', ')+'. ';
-    if(exh.length) t += 'In the exhaustion zone: '+exh.join(', ')+'. ';
-  }
-  var v = state(ENGINES[4], m);
-  if(v.z!==undefined && v.status==='real' && zone(v.z)==='comp') t += 'Per the strategy memo, a downside Z-score this low suggests equity hedges are structurally cheap. ';
-  if(notReal.length) t += notReal.length+' more '+(notReal.length===1?'row is':'rows are')+' synthetic, placeholder or missing a data status, and '+(notReal.length===1?'is':'are')+' not read as signals.';
-  t = t.trim();
+  // takeaway: lead with what needs attention, read from real rows only
+  var flagged = real.filter(function(s){ return zone(s.z)!=='mid'; });
+  var t = '';
+  if(!real.length) t = 'No signal has data yet.';
+  else if(!flagged.length) t = 'No signal is outside its normal range.';
+  else t = 'Worth attention: ' + flagged.map(function(s){
+      return s.e.name+' is '+zoneLabel(s.z).toLowerCase()+' (score '+zfmt(s.z)+'). '+meaning(s.e, s.z);
+    }).join(' ');
   document.getElementById('takeaway').textContent = t;
+  var cov = real.length < ENGINES.length ? 'Based on '+real.length+' of '+ENGINES.length+' signals so far; the others are waiting for data.' : 'Based on all '+ENGINES.length+' signals.';
+  if(notReal.length) cov += ' '+notReal.length+' '+(notReal.length===1?'row uses':'rows use')+' test or placeholder data and '+(notReal.length===1?'is':'are')+' left out.';
+  document.getElementById('coverage').textContent = cov;
 
   // tables
   var html = '';
   Object.keys(GROUPS).forEach(function(g){
-    html += '<h3>'+GROUPS[g]+'</h3><div class="tablewrap"><table><thead><tr>'+
-      '<th>Engine</th><th class="num">Level</th><th>Z-score on −3 to +3 scale</th><th class="num">Z</th><th class="num">3M Δ</th><th class="num">1Y Δ</th><th>Signal</th><th>Status</th></tr></thead><tbody>';
+    html += '<h3>'+GROUPS[g][0]+'</h3><p class="group-sub">'+GROUPS[g][1]+'</p><div class="tablewrap"><table><thead><tr>'+
+      '<th>Signal</th><th class="num">Today</th><th>Score (−3 to +3)</th><th class="num">3-month change</th><th class="num">1-year change</th><th>What it means</th></tr></thead><tbody>';
     st.filter(function(s){return s.e.group===g;}).forEach(function(s){
       var has = s.z!==undefined;
       var pos = has ? Math.max(0,Math.min(100,(s.z+3)/6*100)) : 0;
       var zn = has ? zone(s.z) : 'wait';
-      html += '<tr><td class="eng">'+s.e.name+
-        '<span class="small">Owner '+s.e.owner+' · '+s.e.source+'</span>'+
-        (s.zs!==undefined ? '<span class="small">Standard Z-score: '+zfmt(s.zs)+'</span>' : '')+'</td>'+
+      var review = !has ? '' : (s.status==='real'
+            ? '<span class="small">'+(s.validated?'Checked by Team 4':'Pending review')+'</span>'
+            : '<span class="small"><span class="tag">'+STATUS_LABEL[s.status||'unknown'].toUpperCase()+'</span> Not a real reading</span>');
+      html += '<tr><td class="eng">'+s.e.name+'<span class="small">'+s.e.what+'</span>'+
+        '<span class="small detail">Owner '+s.e.owner+' · '+s.e.source+(s.release?' · Release '+esc(s.release):'')+(s.date?' · Data date '+esc(s.date):'')+'</span>'+
+        (s.zs!==undefined ? '<span class="small detail">Usual (non-downside) score: '+zfmt(s.zs)+'</span>' : '')+'</td>'+
         '<td class="num">'+fmtLevel(s.lv, s.unit)+'</td>'+
-        '<td>'+(has ? '<div class="gauge" role="img" aria-label="Z-score '+zfmt(s.z)+', '+zoneLabel(s.z)+'"><span class="zero"></span><span class="dot '+zn+'" style="left:'+pos+'%"></span></div><div class="axis"><span>−3</span><span>0</span><span>+3</span></div>'
-                    : '<span class="small">Awaiting data from owner '+s.e.owner+'</span>')+'</td>'+
-        '<td class="num">'+(has?zfmt(s.z):'—')+'</td>'+
+        '<td>'+(has ? '<div class="gauge" role="img" aria-label="Score '+zfmt(s.z)+', '+zoneLabel(s.z)+'"><span class="zero"></span><span class="dot '+zn+'" style="left:'+pos+'%"></span></div><div class="axis"><span>−3</span><span class="score">'+zfmt(s.z)+'</span><span>+3</span></div>'
+                    : '<span class="small">Waiting for data</span>')+'</td>'+
         '<td class="num">'+fmtChg(s.c3, s.unit)+'</td><td class="num">'+fmtChg(s.c1, s.unit)+'</td>'+
-        '<td>'+(has?'<span class="pill '+zn+'">'+zoneLabel(s.z)+'</span>':'<span class="pill wait">No data</span>')+'</td>'+
-        '<td>'+(!has ? '' : (s.status==='real'
-              ? 'Real · '+(s.validated?'Checked':'Not yet validated')
-              : '<span class="tag">'+STATUS_LABEL[s.status||'unknown'].toUpperCase()+'</span>'))+
-        (has && s.release ? '<span class="small">'+s.release+'</span>' : '')+'</td></tr>';
+        '<td class="meaning">'+(has?'<span class="pill '+zn+'">'+zoneLabel(s.z)+'</span><br>'+esc(meaning(s.e, s.z)):'<span class="pill wait">No data yet</span>')+review+'</td></tr>';
     });
     html += '</tbody></table></div>';
   });
   document.getElementById('groups').innerHTML = html;
 
-  // joint warning
+  // combined warning from the memo: calm markets and tight credit at the same time
   var vol = st[4], cr = st[7], j = document.getElementById('joint');
   if(vol.z!==undefined && cr.z!==undefined){
     var on = vol.z < -1.5 && cr.z < -1.5;
-    j.innerHTML = '<b>Joint warning (low VIX + tight credit spreads): '+(on?'triggered':'not triggered')+'.</b> '+
-      'VIX Z '+zfmt(vol.z)+', credit Z '+zfmt(cr.z)+'. Both below −1.5 together is the strategy memo\'s signal of possible capital misallocation.'+(vol.status!=='real'||cr.status!=='real'?' (Includes data that is not marked real, so this is not a real signal.)':'');
+    j.innerHTML = '<b>Combined warning (calm markets and tight credit): '+(on?'on':'off')+'.</b> '+
+      'The memo treats unusually low VIX together with unusually tight credit spreads as a warning that capital may be misallocated. '+
+      'VIX score '+zfmt(vol.z)+', credit score '+zfmt(cr.z)+'.'+(vol.status!=='real'||cr.status!=='real'?' This uses test or placeholder data, so it is not a real signal.':'');
   } else {
-    j.innerHTML = '<b>Joint warning (low VIX + tight credit spreads): awaiting data.</b> It needs both the volatility and credit engines to report.';
+    j.innerHTML = '<b>Combined warning (calm markets and tight credit): waiting for data.</b> The memo treats unusually low VIX together with unusually tight credit spreads as a warning sign. It needs both signals.';
   }
+  renderAllocation();
+  renderFunds();
+}
+
+// ---------- Team 2 and Team 3 panels ----------
+// Rows by entity, latest date for each metric. Unlike latest() this keeps text values such as status.
+function projectRows(prefix){
+  var byEntity = {};
+  rows.forEach(function(r){
+    if((r.entity||'').indexOf(prefix)!==0 || r.value==='' || r.value===undefined) return;
+    var id = r.entity.slice(prefix.length);
+    var e = byEntity[id] = byEntity[id] || {};
+    if(!e[r.metric] || r.date >= e[r.metric].date) e[r.metric] = r;
+  });
+  return byEntity;
+}
+function num(row){ var v = row ? parseFloat(row.value) : NaN; return isNaN(v) ? null : v; }
+function pct(v){ return v===null ? '—' : (v<0?'−':'')+(Math.abs(v)*100).toFixed(2)+'%'; }
+function pp(v){ return v===null ? '—' : sign(v)+(Math.abs(v)*100).toFixed(2)+' pp'; }
+function dec(v, d){ return v===null ? '—' : (v<0?'−':'')+Math.abs(v).toFixed(d===undefined?2:d); }
+function statusTag(s){
+  s = s || 'unknown';
+  return s==='real' ? '' : '<span class="tag">'+esc((STATUS_LABEL[s]||s).toUpperCase())+'</span>';
+}
+function metaLine(all){
+  var rel = {};
+  all.forEach(function(r){ if(r.release_id) rel[r.release_id]=1; });
+  return 'Release: '+(Object.keys(rel).map(esc).join(', ')||'not stated');
+}
+function notRealWarning(all){
+  var bad = all.filter(function(r){ return r.data_status!=='real' && r.data_status!=='hypothetical'; });
+  return bad.length ? '<div class="warn"><b>Not a client result.</b> This section includes test or placeholder data.</div>' : '';
+}
+function flatten(byEntity){
+  var all = [];
+  Object.keys(byEntity).forEach(function(k){ Object.keys(byEntity[k]).forEach(function(m){ all.push(byEntity[k][m]); }); });
+  return all;
+}
+var RESULT_LABEL = {success:'Solved', infeasible:'No solution under these limits', input_error:'Input problem', solver_error:'Solver problem'};
+
+function renderAllocation(){
+  var el = document.getElementById('allocPanel'), data = projectRows('alloc/');
+  var port = data.portfolio, assets = Object.keys(data).filter(function(k){ return k!=='portfolio'; });
+  if(!port || !assets.length){
+    el.innerHTML = '<div class="waiting">Waiting for Team 2\'s results.</div>';
+    return;
+  }
+  var all = flatten(data), records = [];
+  Object.keys(port).forEach(function(m){
+    var i = m.lastIndexOf('.status');
+    if(i>0 && i===m.length-7) records.push(m.slice(0,i));
+  });
+  var label = function(id){ return id==='reference' ? 'Reference portfolio' : (id==='baseline_solution' ? 'Suggested portfolio' : 'What-if '+id.replace('scenario_','')); };
+  var h = notRealWarning(all);
+  h += '<div class="tablewrap narrow"><table><thead><tr><th>Portfolio</th><th class="num">Expected return (per year)</th><th class="num">Volatility (per year)</th><th>Result</th></tr></thead><tbody>';
+  records.forEach(function(id){
+    var st = port[id+'.status'], ch = port[id+'.change'];
+    h += '<tr><td class="eng">'+esc(label(id))+(ch?'<span class="small">'+esc(ch.value)+'</span>':'')+'</td>'+
+      '<td class="num">'+pct(num(port[id+'.expected_return']))+'</td><td class="num">'+pct(num(port[id+'.volatility']))+'</td>'+
+      '<td>'+esc(RESULT_LABEL[st.value]||st.value)+' '+statusTag(st.data_status)+'</td></tr>';
+  });
+  h += '</tbody></table></div><h3>Weights and risk by asset</h3><p class="group-sub">Share of risk shows how much of the suggested portfolio\'s ups and downs each asset causes.</p>'+
+    '<div class="tablewrap narrow"><table><thead><tr><th>Asset</th>'+
+    '<th class="num">Reference weight</th><th class="num">Suggested weight</th><th class="num">Change</th>'+
+    '<th class="num">Share of risk</th><th class="num detail">Contribution to volatility</th></tr></thead><tbody>';
+  assets.forEach(function(a){
+    var r = data[a], w0 = num(r['reference.weight']), w1 = num(r['baseline_solution.weight']);
+    h += '<tr><td class="eng">'+esc(a)+'</td><td class="num">'+pct(w0)+'</td><td class="num">'+pct(w1)+'</td>'+
+      '<td class="num">'+(w0===null||w1===null?'—':pp(w1-w0))+'</td>'+
+      '<td class="num">'+pct(num(r['baseline_solution.risk_share']))+'</td>'+
+      '<td class="num detail">'+pp(num(r['baseline_solution.vol_contribution']))+'</td></tr>';
+  });
+  h += '</tbody></table></div><ul class="notes">'+
+    '<li>Targets and limits are demonstration settings, not approved First Bank policy. The reference portfolio is not established as current holdings.</li>'+
+    '<li>What-if cases are hypothetical, and each starts from the same suggested portfolio.</li>'+
+    '<li class="detail">'+metaLine(all)+'. Negative risk contributions stay negative.</li></ul>';
+  el.innerHTML = h;
+}
+
+var fundWindow = null;
+var WINDOW_LABEL = {full:'Full history', common:'Common window', t36_now:'Last 36 months', t36_1y:'36 months, a year ago', t60_now:'Last 60 months', t60_1y:'60 months, a year ago'};
+function renderFunds(){
+  var el = document.getElementById('fundPanel'), data = projectRows('fund/'), funds = Object.keys(data);
+  if(!funds.length){
+    el.innerHTML = '<div class="waiting">Waiting for Team 3\'s results.</div>';
+    return;
+  }
+  var all = flatten(data), windows = [];
+  all.forEach(function(r){ var w = r.metric.split('.')[0]; if(windows.indexOf(w)<0) windows.push(w); });
+  if(windows.indexOf(fundWindow)<0) fundWindow = windows[0];
+  var w = fundWindow, inWindow = all.filter(function(r){ return r.metric.indexOf(w+'.')===0; });
+  var h = notRealWarning(all) +
+    '<p class="howto"><b>How to read.</b> Market sensitivity of 1.0 means the fund moves with the market; above 1.0, it moves more. A positive tilt means the fund leans toward small, value or momentum stocks. Alpha is the return left after these effects.</p>'+
+    '<div class="fund-controls noprint"><label>Period: <select id="fundWindow">'+
+    windows.map(function(x){ return '<option value="'+esc(x)+'"'+(x===w?' selected':'')+'>'+esc(WINDOW_LABEL[x]||x)+'</option>'; }).join('')+
+    '</select></label></div><div class="tablewrap"><table><thead><tr><th>Fund</th><th class="num">Return (per year)</th><th class="num">Volatility</th><th class="num">Sharpe ratio</th>'+
+    '<th class="num">Alpha (per month)</th><th class="num detail">Alpha t-stat</th><th class="num">Market sensitivity</th><th class="num">Small-cap tilt</th><th class="num">Value tilt</th><th class="num">Momentum tilt</th>'+
+    '<th class="num">Fit (R²)</th><th class="num detail">Months</th><th>Notes</th></tr></thead><tbody>';
+  funds.forEach(function(f){
+    var r = data[f], model = ['Carhart4','FF3','CAPM','EquityBeta'].filter(function(m){ return r[w+'.'+m+'.status']; })[0];
+    var g = function(k){ return model ? r[w+'.'+model+'.'+k] : undefined; };
+    var st = g('status'), ok = st && st.value==='ok', first = st || r[w+'.perf.status'];
+    var note = !st ? 'No factor result' : (ok ? (model==='EquityBeta' ? 'Bond fund: stock market exposure only' : '') :
+      'Not enough history for a result');
+    var proxy = num(g('proxy_obs'));
+    var corr = num(g('correlation'));
+    h += '<tr><td class="eng">'+esc(f)+'<span class="small detail">Model: '+esc(model||'none')+'</span></td>'+
+      '<td class="num">'+pct(num(r[w+'.perf.ann_return']))+'</td><td class="num">'+pct(num(r[w+'.perf.ann_vol']))+'</td><td class="num">'+dec(num(r[w+'.perf.sharpe']))+'</td>'+
+      '<td class="num">'+pct(num(g('alpha.estimate')))+'</td><td class="num detail">'+dec(num(g('alpha.t_stat')))+'</td>'+
+      '<td class="num">'+dec(num(g('mkt_rf.estimate')))+'</td><td class="num">'+dec(num(g('smb.estimate')))+'</td><td class="num">'+dec(num(g('hml.estimate')))+'</td><td class="num">'+dec(num(g('mom.estimate')))+'</td>'+
+      '<td class="num">'+dec(num(g('r2')))+'</td><td class="num detail">'+(num(g('nobs'))===null?'—':num(g('nobs')))+'</td>'+
+      '<td>'+esc(note)+' '+statusTag(first && first.data_status)+
+      (corr!==null?'<span class="small">Correlation with the stock market: '+dec(corr)+'</span>':'')+
+      (proxy?'<span class="small">Includes '+proxy+' months of stand-in data</span>':'')+'</td></tr>';
+  });
+  var dates = inWindow.map(function(r){ return r.date; }).filter(Boolean).sort();
+  h += '</tbody></table></div><ul class="notes">'+
+    '<li>Returns are after fund expenses, but before advisory fees and taxes.</li>'+
+    '<li>Alpha is per month and not annualized. Team 3 is still reviewing which differences are meaningful.</li>'+
+    '<li>For bond funds, only their link to the stock market is shown. Their alpha is not a measure of manager skill.</li>'+
+    '<li>"Not enough history" means no result, not a weak result.'+(dates.length?' Data through '+prettyDate(dates[dates.length-1])+'.':'')+'</li>'+
+    '<li class="detail">'+metaLine(inWindow)+'.</li></ul>';
+  el.innerHTML = h;
+  document.getElementById('fundWindow').addEventListener('change', function(){ fundWindow = this.value; renderFunds(); });
 }
 
 // ---------- Controls ----------
@@ -271,6 +458,11 @@ function download(name, text){
   a.href = URL.createObjectURL(new Blob([text],{type:'text/csv'}));
   a.download = name; document.body.appendChild(a); a.click(); a.remove();
 }
+document.getElementById('detailBtn').addEventListener('click', function(){
+  var on = document.body.classList.toggle('details');
+  this.classList.toggle('on', on); this.setAttribute('aria-pressed', on);
+  this.textContent = on ? 'Hide sources and details' : 'Show sources and details';
+});
 document.getElementById('csvFiles').addEventListener('change', function(ev){
   var files = Array.prototype.slice.call(ev.target.files);
   var pending = files.length;
@@ -294,10 +486,11 @@ document.getElementById('tplBtn').addEventListener('click', function(){
   download('dashboard_template.csv', ex);
 });
 document.getElementById('expBtn').addEventListener('click', function(){
-  var m = latest(), out = ['engine,level,unit,z_score,chg_3m,chg_1y,signal,data_status,validated,date,release_id'];
+  var m = latest(), out = ['signal,today,unit,score,chg_3m,chg_1y,reading,what_it_means,data_status,checked_by_team4,date,release_id'];
+  var q = function(s){ return '"'+String(s).replace(/"/g,'""')+'"'; };
   ENGINES.forEach(function(e){
     var s = state(e,m); if(s.z===undefined) return;
-    out.push([e.name,s.lv===undefined?'':s.lv,s.unit,s.z,s.c3===undefined?'':s.c3,s.c1===undefined?'':s.c1,zoneLabel(s.z),s.status,s.validated,s.date,s.release].join(','));
+    out.push([q(e.name),s.lv===undefined?'':s.lv,s.unit,s.z,s.c3===undefined?'':s.c3,s.c1===undefined?'':s.c1,zoneLabel(s.z),q(meaning(e,s.z)),s.status,s.validated,s.date,s.release].join(','));
   });
   download('dashboard_export.csv', out.join('\n')+'\n');
 });
@@ -305,10 +498,10 @@ document.getElementById('printBtn').addEventListener('click', function(){ window
 render();
 
 // When served from a web address (e.g. GitHub Pages), read inputs/<engine id>.csv automatically.
-// Opened as a local file, browsers block this, so the "Load engine CSV files" button is used instead.
+// Opened as a local file, browsers block this, so the "Load data files" button is used instead.
 if(/^https?:$/.test(location.protocol)){
-  ENGINES.forEach(function(e){
-    fetch('inputs/'+e.id+'.csv', {cache:'no-store'})
+  ENGINES.map(function(e){ return e.id; }).concat(['allocation','funds']).forEach(function(id){
+    fetch('inputs/'+id+'.csv', {cache:'no-store'})
       .then(function(r){ return r.ok ? r.text() : ''; })
       .then(function(t){ if(t){ rows = rows.concat(parseCSV(t)); render(); } })
       .catch(function(){});

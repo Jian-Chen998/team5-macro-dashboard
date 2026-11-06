@@ -1,0 +1,4 @@
+# Results built from Team 1's real data are restricted. Do not commit them.
+inputs/allocation.csv
+inputs/funds.csv
+__pycache__/
