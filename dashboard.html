@@ -182,6 +182,7 @@ td{padding:10px;border-bottom:1px solid var(--grid);vertical-align:top}
 tr:last-child td{border-bottom:0}
 tr.grouprow td{font-size:11px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:14px}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+th.num{white-space:normal}  /* long numeric headers wrap, so wide tables fit without sideways scrolling */
 td.meaning{min-width:240px}
 .eng{font-weight:600}
 .small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
@@ -1310,7 +1311,7 @@ function renderAllocation(){
       '<span><i style="background:var(--surface);border:2px solid var(--ink);width:10px;height:10px;border-radius:50%"></i>Lowest-risk mix</span>'+
       '<span><i style="background:var(--ink-2);height:2px;width:16px;vertical-align:3px"></i>Efficient frontier</span></div>'+
       '<div class="hplot" id="frontierPlot" tabindex="0" role="img" aria-label="Efficient frontier with the reference and suggested portfolios. Use the arrow keys to read each point."></div>'+
-      '<p class="small" style="margin:6px 0 0">What-if cases use their own assumptions, so they are not drawn on this curve.'+(gaps ? ' Gaps in the curve are points the solver could not solve.' : '')+'</p>';
+      '<p class="small" style="margin:6px 0 0">What-if cases use their own assumptions, so they are not drawn on this curve.'+(gaps ? ' Points the solver could not solve are left out of the curve.' : '')+'</p>';
   }
 
   h += '<h3 class="eyebrow" style="margin-top:18px">All portfolios</h3><div class="tablewrap"><table style="min-width:620px"><thead><tr><th>Portfolio</th><th class="num">Expected return (per year)</th><th class="num">Volatility (per year)</th><th>Result</th></tr></thead><tbody>';

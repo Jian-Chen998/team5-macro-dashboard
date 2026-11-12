@@ -42,13 +42,13 @@ def team2_sample():
 
 def frontier_sample():
     """A made-up minimum-variance curve that passes through the sample's suggested portfolio
-    (6.0% return, 9.0% volatility). Point 7 fails, so the drawn line must break there."""
+    (6.0% return, 9.0% volatility). The last point fails, as a failed point would in Team 2's scan."""
     def point(ret):
         vol = math.sqrt(0.085 ** 2 + 13.67 * (ret - 0.052) ** 2)
         return {"status": "success", "expected_return": round(ret, 6), "volatility": round(vol, 6), "target_return": ret}
     targets = [0.052 + i * (0.075 - 0.052) / 11 for i in range(12)]
     points = [point(r) for r in targets]
-    points[6] = {"status": "solver_error", "expected_return": None, "volatility": None, "target_return": targets[6]}
+    points[-1] = {"status": "solver_error", "expected_return": None, "volatility": None, "target_return": targets[-1]}
     return {"status": "partial_failure", "gmv": point(0.052), "maximum": point(0.075), "points": points,
             "degenerate": False, "reason": None}
 

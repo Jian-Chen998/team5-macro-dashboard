@@ -40,8 +40,8 @@ class Team2(unittest.TestCase):
     def test_frontier_points_pass_through_and_failed_points_have_no_numbers(self):
         self.assertEqual(self.by[("alloc/frontier", "gmv.volatility")][3], 0.085)
         self.assertEqual(self.by[("alloc/frontier", "p01.status")][3], "success")
-        self.assertEqual(self.by[("alloc/frontier", "p07.status")][3], "solver_error")
-        self.assertNotIn(("alloc/frontier", "p07.volatility"), self.by)
+        self.assertEqual(self.by[("alloc/frontier", "p12.status")][3], "solver_error")
+        self.assertNotIn(("alloc/frontier", "p12.volatility"), self.by)
         self.assertEqual(self.by[("alloc/frontier", "scan.status")][3], "partial_failure")
 
     def test_result_without_frontier_still_converts(self):

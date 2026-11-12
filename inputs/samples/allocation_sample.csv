@@ -59,7 +59,9 @@ date,entity,metric,value,unit,release_id,data_status,validated
 ,alloc/frontier,p06.status,success,text,made_up_sample,synthetic,FALSE
 ,alloc/frontier,p06.expected_return,0.062455,decimal,made_up_sample,synthetic,FALSE
 ,alloc/frontier,p06.volatility,0.093376,decimal,made_up_sample,synthetic,FALSE
-,alloc/frontier,p07.status,solver_error,text,made_up_sample,synthetic,FALSE
+,alloc/frontier,p07.status,success,text,made_up_sample,synthetic,FALSE
+,alloc/frontier,p07.expected_return,0.064545,decimal,made_up_sample,synthetic,FALSE
+,alloc/frontier,p07.volatility,0.096832,decimal,made_up_sample,synthetic,FALSE
 ,alloc/frontier,p08.status,success,text,made_up_sample,synthetic,FALSE
 ,alloc/frontier,p08.expected_return,0.066636,decimal,made_up_sample,synthetic,FALSE
 ,alloc/frontier,p08.volatility,0.100764,decimal,made_up_sample,synthetic,FALSE
@@ -72,6 +74,4 @@ date,entity,metric,value,unit,release_id,data_status,validated
 ,alloc/frontier,p11.status,success,text,made_up_sample,synthetic,FALSE
 ,alloc/frontier,p11.expected_return,0.072909,decimal,made_up_sample,synthetic,FALSE
 ,alloc/frontier,p11.volatility,0.114897,decimal,made_up_sample,synthetic,FALSE
-,alloc/frontier,p12.status,success,text,made_up_sample,synthetic,FALSE
-,alloc/frontier,p12.expected_return,0.075,decimal,made_up_sample,synthetic,FALSE
-,alloc/frontier,p12.volatility,0.120235,decimal,made_up_sample,synthetic,FALSE
+,alloc/frontier,p12.status,solver_error,text,made_up_sample,synthetic,FALSE
