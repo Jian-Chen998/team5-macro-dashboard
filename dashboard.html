@@ -192,6 +192,41 @@ select{font:inherit;font-size:13px;color:var(--ink);background:var(--surface);bo
   .wrow{grid-template-columns:110px 1fr}
 }
 .track .none{white-space:nowrap}
+
+/* Interactions: cutoff slider, signal history, scenario picker, fund compare */
+.chart{--bandw:25%}
+.band.low,.band.high{width:var(--bandw)}
+.crow{cursor:pointer}
+.crow.sel{background:var(--mid-band);box-shadow:inset 3px 0 0 var(--ink-2)}
+.noanim .bar,.noanim .val{transition:none!important}
+.cutctl{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:0 0 12px;font-size:13px;color:var(--ink-2)}
+.cutctl input[type=range]{width:200px;accent-color:var(--ink)}
+:root[data-look="terminal"] .cutctl input[type=range]{accent-color:var(--chrome)}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:5px 10px}
+.seg button+button{border-left:1px solid var(--border)}
+.history{margin:14px 0 0;padding:14px 0 0;border-top:1px solid var(--grid)}
+.hhead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:flex-start;margin:0 0 8px}
+.hhead h3{font-size:15px;font-weight:650;margin:0}
+.hctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hplot{position:relative;outline:none;border-radius:6px}
+.hplot:focus-visible{box-shadow:0 0 0 2px var(--axis)}
+.hplot svg{display:block;max-width:100%;height:auto;overflow:visible}
+.hplot text{font-size:11px;fill:var(--muted)}
+details.numbers{margin:8px 0 0}
+details.numbers summary{cursor:pointer;font-size:12px;color:var(--ink-2)}
+.wbar span.b{transition:width .5s cubic-bezier(.2,.7,.2,1)}
+i.key{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+tr.picked td{background:var(--mid-band)}
+.cmpbox{border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:0 0 12px;background:var(--raised)}
+.mcell{display:inline-flex;align-items:center;gap:10px;justify-content:flex-end}
+.mini{display:inline-block;position:relative;width:90px;height:6px;flex:none}
+.mini .b{position:absolute;top:0;height:6px;background:var(--ink-2);opacity:.7}
+.mini .b.pos{border-radius:0 3px 3px 0} .mini .b.neg{border-radius:3px 0 0 3px}
+.mini .z{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--axis)}
+input.pick{width:16px;height:16px;cursor:pointer;accent-color:var(--ink)}
+@media (prefers-reduced-motion: reduce){ .wbar span.b{transition:none} }
+@media print{ details.numbers{display:none} }
 @media print{
   body{background:#fff} .toolbar,.noprint{display:none!important}
   .card,.tile{break-inside:avoid}
@@ -235,13 +270,20 @@ select{font:inherit;font-size:13px;color:var(--ink);background:var(--surface);bo
 
   <section class="card">
     <h2>Risk signals on one scale</h2>
-    <p class="lede">Each signal is scored against its own history. 0 is normal; beyond &plusmn;1.5 is unusual. Hover or tab to a row for details.</p>
+    <p class="lede">Each signal is scored against its own history. 0 is normal; beyond &plusmn;<span class="cutv">1.5</span> is unusual. Hover or tab to a row for details; click it, or press Enter, to see its history.</p>
+    <div class="cutctl noprint">
+      <label for="cut">Call a score unusual beyond &plusmn;<b class="cutv">1.5</b></label>
+      <input type="range" id="cut" min="1" max="2.5" step="0.1" value="1.5" aria-describedby="cutNote">
+      <button type="button" id="cutReset" hidden>Back to the memo's &plusmn;1.5</button>
+      <span class="small" id="cutNote">The strategy memo uses &plusmn;1.5. Drag to see which signals cross a stricter or looser line.</span>
+    </div>
     <div class="legend" aria-label="Legend">
-      <span><i style="background:var(--low)"></i>Unusually low (below &minus;1.5, the memo's compression zone)</span>
+      <span><i style="background:var(--low)"></i><span id="legLow">Unusually low</span></span>
       <span><i style="background:var(--mid)"></i>Normal range</span>
-      <span><i style="background:var(--high)"></i>Unusually high (above +1.5, the memo's exhaustion zone)</span>
+      <span><i style="background:var(--high)"></i><span id="legHigh">Unusually high</span></span>
     </div>
     <div class="chart" id="chart"></div>
+    <div class="history" id="history"></div>
     <div class="joint" id="joint"></div>
   </section>
 
@@ -342,6 +384,15 @@ var DEMO = {
 // ---------- State ----------
 var rows = parseCSV(DEFAULT_CSV);
 var demoOn = false;
+// Cutoff for "unusual". The memo uses 1.5; the slider changes it for this view only.
+var MEMO_CUT = 1.5, CUT = MEMO_CUT;
+// False while the slider is dragged, so bars move at once instead of regrowing from zero.
+var animate = true;
+var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function cutTxt(){ return CUT.toFixed(1); }
+function memoCut(){ return Math.abs(CUT - MEMO_CUT) < 1e-9; }
+function refocus(sel){ var n = document.querySelector(sel); if(n) n.focus(); }
+function cssq(s){ return window.CSS && CSS.escape ? CSS.escape(s) : String(s).replace(/["\\]/g, '\\$&'); }
 
 function parseCSV(text){
   var lines = text.replace(/\r/g,'').split('\n').filter(function(l){return l.trim()!=='';});
@@ -381,9 +432,9 @@ function latest(){
 }
 function get(m, id, metric){ return m[id+'|'+metric]; }
 
-function zone(z){ return z < -1.5 ? 'comp' : (z > 1.5 ? 'exh' : 'mid'); }
-function zoneLabel(z){ return z < -1.5 ? 'Unusually low' : (z > 1.5 ? 'Unusually high' : 'Normal'); }
-function meaning(e, z){ return z < -1.5 ? e.low : (z > 1.5 ? e.high : 'Within its normal range.'); }
+function zone(z){ return z < -CUT ? 'comp' : (z > CUT ? 'exh' : 'mid'); }
+function zoneLabel(z){ return z < -CUT ? 'Unusually low' : (z > CUT ? 'Unusually high' : 'Normal'); }
+function meaning(e, z){ return z < -CUT ? e.low : (z > CUT ? e.high : 'Within its normal range.'); }
 function sign(v){ return v>0?'+':(v<0?'−':''); }
 function zfmt(v){ return sign(v) + Math.abs(v).toFixed(2); }
 // Direction colors: green with an up arrow for a rise, red with a down arrow for a fall.
@@ -406,7 +457,7 @@ function fmtChg(v, unit){
 var STATUS_LABEL = {real:'Real', synthetic:'Synthetic', placeholder:'Placeholder', mixed:'Mixed', hypothetical:'Hypothetical', unknown:'Status missing'};
 function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function prettyDate(d){
-  var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], p = String(d||'').split('-');
+  var mo = MONTHS, p = String(d||'').split('-');
   if(p.length < 2 || !mo[+p[1]-1]) return String(d||'');
   return (p[2] ? (+p[2])+' ' : '') + mo[+p[1]-1] + ' ' + p[0];
 }
@@ -452,29 +503,40 @@ function render(){
   document.getElementById('takeaway').textContent = t;
   var cov = real.length < ENGINES.length ? 'Based on '+real.length+' of '+ENGINES.length+' signals so far; the others are waiting for data.' : 'Based on all '+ENGINES.length+' signals.';
   if(notReal.length) cov += ' '+notReal.length+' '+(notReal.length===1?'row uses':'rows use')+' test or placeholder data and '+(notReal.length===1?'is':'are')+' left out.';
+  if(!memoCut()) cov += ' Using a custom cutoff of ±'+cutTxt()+'; the strategy memo uses ±1.5.';
   document.getElementById('coverage').textContent = cov;
+
+  // cutoff slider labels and legend
+  Array.prototype.forEach.call(document.querySelectorAll('.cutv'), function(n){ n.textContent = cutTxt(); });
+  document.getElementById('cutReset').hidden = memoCut();
+  document.getElementById('cutNote').textContent = memoCut()
+    ? 'The strategy memo uses ±1.5. Drag to see which signals cross a stricter or looser line.'
+    : 'Custom cutoff for this view only. The memo\'s zones are defined at ±1.5.';
+  document.getElementById('legLow').textContent = 'Unusually low (below −'+cutTxt()+(memoCut()?', the memo\'s compression zone':'')+')';
+  document.getElementById('legHigh').textContent = 'Unusually high (above +'+cutTxt()+(memoCut()?', the memo\'s exhaustion zone':'')+')';
 
   // stat tiles
   var vol = st[4], cr = st[7];
   var jointReady = vol.z!==undefined && cr.z!==undefined && vol.status==='real' && cr.status==='real';
-  var jointOn = jointReady && vol.z < -1.5 && cr.z < -1.5;
+  var jointOn = jointReady && vol.z < -CUT && cr.z < -CUT;
   var nLow = real.filter(function(s){return zone(s.z)==='comp';}).length, nHigh = real.filter(function(s){return zone(s.z)==='exh';}).length;
   var cnt = function(n){ return '<span class="cnt" data-n="'+n+'">'+n+'</span>'; };
   var tiles = document.getElementById('tiles');
   tiles.innerHTML =
     tile('Signals with data', cnt(real.length)+' <small>of '+ENGINES.length+'</small>', 'Real readings only') +
-    tile('<span class="key" style="background:var(--low)"></span>Unusually low', cnt(nLow), 'Below −1.5') +
-    tile('<span class="key" style="background:var(--high)"></span>Unusually high', cnt(nHigh), 'Above +1.5') +
+    tile('<span class="key" style="background:var(--low)"></span>Unusually low', cnt(nLow), 'Below −'+cutTxt()) +
+    tile('<span class="key" style="background:var(--high)"></span>Unusually high', cnt(nHigh), 'Above +'+cutTxt()) +
     tile('Combined warning', jointReady ? (jointOn ? 'On' : 'Off') : '—', jointReady ? 'Low VIX and tight credit together' : 'Needs VIX and credit data');
   countUp(tiles);
 
   renderTicker(st);
   renderChart(st);
+  renderHistory();
   renderTable(st);
 
   var j = document.getElementById('joint');
   if(vol.z!==undefined && cr.z!==undefined){
-    j.innerHTML = '<b>Combined warning (calm markets and tight credit): '+(vol.z < -1.5 && cr.z < -1.5 ? 'on' : 'off')+'.</b> '+
+    j.innerHTML = '<b>Combined warning (calm markets and tight credit): '+(vol.z < -CUT && cr.z < -CUT ? 'on' : 'off')+'.</b> '+
       'The memo treats unusually low VIX together with unusually tight credit spreads as a warning that capital may be misallocated.'+
       (jointReady?'':' This uses test or placeholder data, so it is not a real signal.');
   } else {
@@ -511,7 +573,7 @@ function renderChart(st){
       } else {
         inner += '<span class="none">No data yet</span>';
       }
-      h += '<div class="crow" tabindex="0" data-i="'+i+'" aria-label="'+esc(s.e.name+': '+(has?'score '+zfmt(s.z)+', '+zoneLabel(s.z):'no data yet'))+'">'+
+      h += '<div class="crow" tabindex="0" role="button" aria-expanded="false" data-i="'+i+'" aria-label="'+esc(s.e.name+': '+(has?'score '+zfmt(s.z)+', '+zoneLabel(s.z):'no data yet')+'. Press Enter for its history.')+'">'+
            '<div class="clabel">'+s.e.name+'<small>'+s.e.what+'</small></div><div class="track">'+inner+'</div></div>';
     });
   });
@@ -520,15 +582,23 @@ function renderChart(st){
   h += '<div class="axisrow"><div></div><div class="axis">'+ax+'</div></div>'+
        '<div class="axisrow"><div></div><div class="zonenames"><span style="left:0">Unusually low</span><span style="left:50%;transform:translateX(-50%)">Normal</span><span style="right:0">Unusually high</span></div></div>';
   var el = document.getElementById('chart');
+  el.style.setProperty('--bandw', ((3 - CUT) / 6 * 100) + '%');
   el.innerHTML = h;
   growBars(el);
   Array.prototype.forEach.call(el.querySelectorAll('.crow'), function(r){
     var s = st[+r.getAttribute('data-i')];
     var show = function(x, y){ showTip(s, x, y); };
+    var toggle = function(){
+      histId = histId===s.e.id ? null : s.e.id;
+      hideTip(); renderHistory();
+      if(histId) document.getElementById('history').scrollIntoView({block:'nearest', behavior: REDUCED ? 'auto' : 'smooth'});
+    };
     r.addEventListener('pointermove', function(ev){ show(ev.clientX, ev.clientY); });
     r.addEventListener('pointerleave', hideTip);
     r.addEventListener('focus', function(){ var b = r.getBoundingClientRect(); show(b.left + b.width*0.6, b.top + b.height); });
     r.addEventListener('blur', hideTip);
+    r.addEventListener('click', toggle);
+    r.addEventListener('keydown', function(ev){ if(ev.key==='Enter' || ev.key===' '){ ev.preventDefault(); toggle(); } });
   });
 }
 var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -539,6 +609,8 @@ function growBars(el){
   };
   // Force a layout at width 0, then set the final width so the CSS transition runs.
   // No requestAnimationFrame: browsers pause it in background tabs, which would leave bars at zero.
+  // While the cutoff slider moves, skip the transition so the bars follow the slider directly.
+  if(!animate){ el.classList.add('noanim'); go(); void el.offsetWidth; el.classList.remove('noanim'); return; }
   if(!REDUCED) void el.offsetWidth;
   go();
 }
@@ -546,7 +618,7 @@ function growBars(el){
 function countUp(root){
   Array.prototype.forEach.call(root.querySelectorAll('.cnt'), function(span){
     var n = +span.getAttribute('data-n');
-    if(REDUCED || !n){ span.textContent = String(n); return; }
+    if(REDUCED || !n || !animate){ span.textContent = String(n); return; }
     // Timed steps rather than requestAnimationFrame, and the final value is always written last,
     // so a paused or throttled tab can never leave a wrong number on screen.
     var t0 = Date.now();
@@ -574,19 +646,30 @@ function renderTicker(st){
     }
     return '<span class="ti"><span class="nm">'+TICK[s.e.id]+'</span>'+body+'</span>';
   }).join('');
-  document.getElementById('ticker').innerHTML = '<div class="tt">'+items+items+'</div>';
+  var html = '<div class="tt">'+items+items+'</div>', el = document.getElementById('ticker');
+  // Rebuild only when the text changes, so moving the cutoff slider does not restart the scroll.
+  if(el.getAttribute('data-h')!==html){ el.innerHTML = html; el.setAttribute('data-h', html); }
 }
 // Tooltip text is set with textContent: values can come from loaded CSV files.
 function showTip(s, x, y){
-  var tip = document.getElementById('tip'); tip.innerHTML = '';
-  var add = function(cls, text){ var d = document.createElement('div'); d.className = cls; d.textContent = text; tip.appendChild(d); return d; };
-  if(s.z===undefined){ add('tv','No data yet'); add('tn', s.e.name); }
+  var lines = [];
+  if(s.z===undefined){ lines = [['tv','No data yet'], ['tn', s.e.name]]; }
   else {
-    add('tv', zfmt(s.z)); add('tn', s.e.name + ' · ' + zoneLabel(s.z));
-    add('', 'Today: ' + fmtLevel(s.lv, s.unit) + (s.date ? ' (' + prettyDate(s.date) + ')' : ''));
-    add('', meaning(s.e, s.z)).style.marginTop = '4px';
-    if(s.status!=='real') add('tn', 'Test or placeholder data, not a real reading.');
+    lines = [['tv', zfmt(s.z)], ['tn', s.e.name + ' · ' + zoneLabel(s.z)],
+             ['', 'Today: ' + fmtLevel(s.lv, s.unit) + (s.date ? ' (' + prettyDate(s.date) + ')' : '')],
+             ['gap', meaning(s.e, s.z)]];
+    if(s.status!=='real') lines.push(['tn', 'Test or placeholder data, not a real reading.']);
   }
+  lines.push(['tn gap', 'Click to see its history.']);
+  tipLines(lines, x, y);
+}
+function tipLines(lines, x, y){
+  var tip = document.getElementById('tip'); tip.innerHTML = '';
+  lines.forEach(function(l){
+    var d = document.createElement('div'); d.className = l[0].replace('gap','').trim(); d.textContent = l[1];
+    if(l[0].indexOf('gap')>=0) d.style.marginTop = '4px';
+    tip.appendChild(d);
+  });
   tip.style.display = 'block';
   var w = tip.offsetWidth, hgt = tip.offsetHeight;
   tip.style.left = Math.min(window.innerWidth - w - 8, x + 14) + 'px';
@@ -614,6 +697,210 @@ function renderTable(st){
     });
   });
   document.getElementById('groups').innerHTML = html + '</tbody></table>';
+}
+
+// ---------- Signal history ----------
+// Click a signal to see every date its owner has sent. Nothing is filled in between dates.
+var histId = null, histMetric = 'z_score', histRange = 'all', histPts = [], histIdx = -1;
+var RANGES = [['1y','1Y',1],['3y','3Y',3],['5y','5Y',5],['all','All',0]];
+function engineById(id){ return ENGINES.filter(function(e){ return e.id===id; })[0]; }
+function toTime(d){ var p = String(d).split('-'); return Date.UTC(+p[0], (+p[1]||1)-1, +p[2]||1); }
+function series(id, metric){
+  var by = {};
+  rows.forEach(function(r){
+    if(r.entity!==id || r.metric!==metric || !r.date) return;
+    var v = parseFloat(r.value), t = toTime(r.date);
+    if(isNaN(v) || isNaN(t)) return;
+    // Same date sent twice: the later row wins, as in latest().
+    by[r.date] = {date:r.date, t:t, v:v, status:r.data_status, unit:r.unit};
+  });
+  var out = Object.keys(by).sort().map(function(k){ return by[k]; });
+  if(!out.length && demoOn && DEMO[id]) out = demoSeries(id, metric);
+  return out;
+}
+// Preview only: a made-up monthly path that ends at the placeholder value. Tagged placeholder.
+function demoSeries(id, metric){
+  if(metric!=='z_score' && metric!=='level') return [];
+  var d = DEMO[id], seed = 7, n = 72, x = [0], out = [];
+  for(var i=0;i<id.length;i++) seed = (seed*31 + id.charCodeAt(i)) >>> 0;
+  var rnd = function(){ seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed/4294967296 - 0.5; };
+  for(var k=1;k<n;k++) x.push(0.85*x[k-1] + 1.6*rnd());
+  var shift = d.z - x[n-1], sd = Math.max(Math.abs(d.c1||0), Math.abs(d.level)*0.12, 0.002);
+  for(var k2=0;k2<n;k2++){
+    var z = Math.max(-3.2, Math.min(3.2, x[k2] + shift*k2/(n-1)));
+    if(k2===n-1) z = d.z;
+    var m = 2026*12 + 8 - (n-1-k2), date = Math.floor(m/12) + '-' + ('0'+(m%12+1)).slice(-2);
+    out.push({date:date, t:toTime(date), v: metric==='z_score' ? z : d.level + (z - d.z)*sd,
+              status:'placeholder', unit: metric==='z_score' ? 'sd' : engineById(id).unit});
+  }
+  return out;
+}
+function histFmt(v, unit){ return unit==='sd' ? zfmt(v) : fmtLevel(v, unit); }
+function niceStep(range, n){
+  var raw = range/n, mag = Math.pow(10, Math.floor(Math.log10(raw))), r = raw/mag;
+  return (r<=1 ? 1 : (r<=2 ? 2 : (r<=5 ? 5 : 10))) * mag;
+}
+function fmtTick(v, unit, step){
+  if(unit==='decimal'){ var dp = Math.max(0, Math.ceil(-Math.log10(step*100) - 1e-9)); return (v<0?'−':'')+Math.abs(v*100).toFixed(dp)+'%'; }
+  var dp2 = Math.max(0, Math.ceil(-Math.log10(step) - 1e-9));
+  return (v<0?'−':'')+Math.abs(v).toFixed(dp2);
+}
+function xTicks(t0, t1){
+  var mi = function(t){ var d = new Date(t); return d.getUTCFullYear()*12 + d.getUTCMonth(); };
+  var m0 = mi(t0), m1 = mi(t1), span = m1 - m0;
+  var step = [1,3,6,12,24,60,120].filter(function(s){ return span/s <= 6; })[0] || 120, out = [];
+  for(var m = Math.ceil(m0/step)*step; m <= m1; m += step){
+    var t = Date.UTC(Math.floor(m/12), m%12, 1);
+    if(t >= t0 && t <= t1) out.push({t:t, label: step>=12 ? String(Math.floor(m/12)) : MONTHS[m%12]+' '+Math.floor(m/12)});
+  }
+  return out;
+}
+function histUnit(e, pts){ return histMetric==='z_score' ? 'sd' : ((pts.length && pts[pts.length-1].unit) || e.unit); }
+
+function renderHistory(){
+  var box = document.getElementById('history');
+  // The old chart is about to be replaced, and a removed element does not always fire blur.
+  hideTip();
+  Array.prototype.forEach.call(document.querySelectorAll('#chart .crow'), function(r){
+    var on = ENGINES[+r.getAttribute('data-i')].id===histId;
+    r.classList.toggle('sel', on); r.setAttribute('aria-expanded', String(on));
+  });
+  if(!histId){
+    box.innerHTML = '<p class="howto" style="margin:0">Click a signal above, or select it and press Enter, to see how it has moved over time.</p>';
+    return;
+  }
+  var e = engineById(histId), every = series(e.id, histMetric), yrs = 0, pts = every;
+  RANGES.forEach(function(r){ if(r[0]===histRange) yrs = r[2]; });
+  if(yrs && every.length){
+    var d = new Date(every[every.length-1].t), cut = Date.UTC(d.getUTCFullYear()-yrs, d.getUTCMonth(), d.getUTCDate());
+    pts = every.filter(function(p){ return p.t >= cut; });
+  }
+  histPts = pts; histIdx = -1;
+  var isZ = histMetric==='z_score', unit = histUnit(e, every);
+  var seg = function(list, cur, attr){
+    return list.map(function(o){ return '<button type="button" '+attr+'="'+o[0]+'" aria-pressed="'+(o[0]===cur)+'"'+(o[0]===cur?' class="on"':'')+'>'+o[1]+'</button>'; }).join('');
+  };
+  var h = '<div class="hhead"><div><p class="eyebrow">History</p><h3>'+esc(e.name)+'</h3><span class="small">'+esc(e.what)+'</span></div>'+
+    '<div class="hctl noprint"><select id="histSel" aria-label="Signal">'+
+    ENGINES.map(function(x){ return '<option value="'+x.id+'"'+(x.id===e.id?' selected':'')+'>'+esc(x.name)+'</option>'; }).join('')+'</select>'+
+    '<span class="seg" role="group" aria-label="Measure">'+seg([['z_score','Score'],['level','Level']], histMetric, 'data-m')+'</span>'+
+    '<span class="seg" role="group" aria-label="Period">'+seg(RANGES, histRange, 'data-r')+'</span>'+
+    '<button type="button" id="histClose">Close</button></div></div>'+
+    '<div class="hplot" id="hplot" tabindex="0" role="img" aria-label="'+
+    esc(e.name+' '+(isZ?'score':'level')+' over time, '+pts.length+' readings. Use the left and right arrow keys to read each one.')+'"></div>';
+  var note;
+  if(!every.length) note = isZ || !series(e.id,'z_score').length ? 'No history yet: the owner has not sent data for this signal.' : 'No level readings have been sent for this signal.';
+  else if(every.length===1) note = 'One reading so far ('+prettyDate(every[0].date)+'). The line appears once more dates are sent.';
+  else note = pts.length+' readings from '+prettyDate(pts[0].date)+' to '+prettyDate(pts[pts.length-1].date)+'.'+(pts.length<every.length ? ' '+every.length+' in total.' : '');
+  if(every.some(function(p){ return p.status!=='real'; })) note += ' Includes test or placeholder data, not real history.';
+  if(isZ && every.length) note += ' Shaded areas are beyond ±'+cutTxt()+'.';
+  h += '<p class="small" style="margin:6px 0 0">'+esc(note)+'</p>';
+  if(pts.length){
+    h += '<details class="numbers"><summary>Show the numbers</summary><div class="tablewrap"><table style="min-width:0;max-width:440px"><thead><tr><th>Date</th><th class="num">'+(isZ?'Score':'Level')+'</th><th>Data</th></tr></thead><tbody>'+
+      pts.slice().reverse().map(function(p){ return '<tr><td>'+esc(prettyDate(p.date))+'</td><td class="num">'+esc(histFmt(p.v, unit))+'</td><td>'+esc(STATUS_LABEL[p.status]||p.status)+'</td></tr>'; }).join('')+
+      '</tbody></table></div></details>';
+  }
+  box.innerHTML = h;
+  drawHistory();
+  var re = function(sel){ renderHistory(); refocus(sel); };
+  document.getElementById('histSel').addEventListener('change', function(){ histId = this.value; re('#histSel'); });
+  Array.prototype.forEach.call(box.querySelectorAll('[data-m]'), function(b){
+    b.addEventListener('click', function(){ histMetric = b.getAttribute('data-m'); re('#history [data-m="'+histMetric+'"]'); });
+  });
+  Array.prototype.forEach.call(box.querySelectorAll('[data-r]'), function(b){
+    b.addEventListener('click', function(){ histRange = b.getAttribute('data-r'); re('#history [data-r="'+histRange+'"]'); });
+  });
+  document.getElementById('histClose').addEventListener('click', function(){
+    var i = ENGINES.indexOf(engineById(histId));
+    histId = null; hideTip(); renderHistory(); refocus('#chart .crow[data-i="'+i+'"]');
+  });
+}
+
+function drawHistory(){
+  var el = document.getElementById('hplot'); if(!el) return;
+  var pts = histPts, e = engineById(histId);
+  if(!pts.length){ el.innerHTML = '<div class="waiting">No data yet for this signal.</div>'; return; }
+  var isZ = histMetric==='z_score', unit = histUnit(e, pts), test = pts.some(function(p){ return p.status!=='real'; });
+  var W = Math.max(300, Math.round(el.clientWidth || 640)), H = 250, ml = 50, mr = test ? 86 : 58, mt = 14, mb = 30;
+  var pw = W-ml-mr, ph = H-mt-mb, t0 = pts[0].t, t1 = pts[pts.length-1].t;
+  var X = function(t){ return t1===t0 ? ml+pw/2 : ml+(t-t0)/(t1-t0)*pw; };
+  var lo, hi, step, ticks = [];
+  if(isZ){
+    var m = 3; pts.forEach(function(p){ m = Math.max(m, Math.ceil(Math.abs(p.v))); });
+    if(m > 4) m = Math.ceil(m/2)*2;
+    lo = -m; hi = m; step = m > 4 ? 2 : 1;
+    for(var k=-m;k<=m;k+=step) ticks.push(k);
+  } else {
+    lo = Infinity; hi = -Infinity;
+    pts.forEach(function(p){ lo = Math.min(lo, p.v); hi = Math.max(hi, p.v); });
+    var pad = (hi-lo)*0.15 || Math.abs(hi)*0.1 || 1; lo -= pad; hi += pad;
+    step = niceStep(hi-lo, 4);
+    for(var v = Math.ceil(lo/step)*step; v <= hi + step*1e-6; v += step) ticks.push(+v.toFixed(12));
+  }
+  var Y = function(v){ return mt + (hi-v)/(hi-lo)*ph; };
+  var s = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" aria-hidden="true">';
+  if(isZ){
+    s += '<rect x="'+ml+'" y="'+mt+'" width="'+pw+'" height="'+(Y(CUT)-mt)+'" style="fill:var(--high-band)"/>'+
+         '<rect x="'+ml+'" y="'+Y(-CUT)+'" width="'+pw+'" height="'+(mt+ph-Y(-CUT))+'" style="fill:var(--low-band)"/>'+
+         '<text x="'+(ml+6)+'" y="'+(mt+13)+'">Unusually high</text>'+
+         '<text x="'+(ml+6)+'" y="'+(mt+ph-6)+'">Unusually low</text>';
+  }
+  ticks.forEach(function(v){
+    var y = Y(v);
+    s += '<line x1="'+ml+'" x2="'+(ml+pw)+'" y1="'+y+'" y2="'+y+'" style="stroke:var('+(isZ && v===0 ? '--axis' : '--grid')+')"/>'+
+         '<text x="'+(ml-8)+'" y="'+(y+4)+'" text-anchor="end">'+(isZ ? (v>0?'+':(v<0?'−':''))+Math.abs(v) : fmtTick(v, unit, step))+'</text>';
+  });
+  var xt = t1===t0 ? [{t:t0, label:prettyDate(pts[0].date)}] : xTicks(t0, t1);
+  xt.forEach(function(k){
+    var x = X(k.t);
+    s += '<line x1="'+x+'" x2="'+x+'" y1="'+(mt+ph)+'" y2="'+(mt+ph+4)+'" style="stroke:var(--axis)"/>'+
+         '<text x="'+x+'" y="'+(mt+ph+18)+'" text-anchor="middle">'+esc(k.label)+'</text>';
+  });
+  if(pts.length > 1){
+    s += '<path d="'+pts.map(function(p, i){ return (i?'L':'M')+X(p.t).toFixed(1)+' '+Y(p.v).toFixed(1); }).join('')+
+         '" style="fill:none;stroke:var(--ink-2);stroke-width:2;stroke-linejoin:round;stroke-linecap:round'+(test?';stroke-dasharray:5 4':'')+'"/>';
+  }
+  var dot = function(p){ return isZ ? 'var(--'+({comp:'low', exh:'high', mid:'mid'})[zone(p.v)]+')' : 'var(--ink-2)'; };
+  if(pts.length <= 36) pts.forEach(function(p, i){
+    if(i < pts.length-1) s += '<circle cx="'+X(p.t)+'" cy="'+Y(p.v)+'" r="4" style="fill:'+dot(p)+';stroke:var(--surface);stroke-width:2"/>';
+  });
+  var last = pts[pts.length-1], lx = X(last.t), ly = Y(last.v);
+  s += '<circle cx="'+lx+'" cy="'+ly+'" r="5.5" style="fill:'+dot(last)+';stroke:var(--surface);stroke-width:2"/>'+
+       '<text x="'+(lx+10)+'" y="'+(ly+4)+'" style="fill:var(--ink);font-weight:650">'+esc(histFmt(last.v, unit))+(test?' TEST':'')+'</text>'+
+       '<line id="hx" y1="'+mt+'" y2="'+(mt+ph)+'" style="stroke:var(--ink-2);stroke-width:1;display:none"/>'+
+       '<circle id="hc" r="6" style="fill:none;stroke:var(--ink);stroke-width:2;display:none"/>'+
+       '<rect x="'+(ml-12)+'" y="'+mt+'" width="'+(pw+24)+'" height="'+ph+'" style="fill:transparent"/></svg>';
+  el.innerHTML = s;
+  var svg = el.querySelector('svg'), hx = svg.querySelector('#hx'), hc = svg.querySelector('#hc');
+  var show = function(i, cx, cy){
+    histIdx = i;
+    var p = pts[i], x = X(p.t), y = Y(p.v);
+    hx.setAttribute('x1', x); hx.setAttribute('x2', x); hx.style.display = '';
+    hc.setAttribute('cx', x); hc.setAttribute('cy', y); hc.style.display = '';
+    if(cx===undefined){ var b = svg.getBoundingClientRect(); cx = b.left + x*b.width/W; cy = b.top + y*b.height/H; }
+    var lines = [['tv', histFmt(p.v, unit)], ['tn', e.name + (isZ ? ' · score' : ' · level')], ['', prettyDate(p.date)]];
+    if(isZ) lines.push(['', zoneLabel(p.v)]);
+    if(p.status!=='real') lines.push(['tn', 'Test or placeholder data, not a real reading.']);
+    tipLines(lines, cx, cy);
+  };
+  var hide = function(){ hx.style.display = 'none'; hc.style.display = 'none'; hideTip(); };
+  svg.addEventListener('pointermove', function(ev){
+    var b = svg.getBoundingClientRect(), sx = (ev.clientX - b.left)*W/b.width, best = 0;
+    pts.forEach(function(p, i){ if(Math.abs(X(p.t)-sx) < Math.abs(X(pts[best].t)-sx)) best = i; });
+    show(best, ev.clientX, ev.clientY);
+  });
+  svg.addEventListener('pointerleave', hide);
+  el.onkeydown = function(ev){
+    var i = histIdx < 0 ? pts.length-1 : histIdx;
+    if(ev.key==='ArrowLeft') i = Math.max(0, i-1);
+    else if(ev.key==='ArrowRight') i = Math.min(pts.length-1, i+1);
+    else if(ev.key==='Home') i = 0;
+    else if(ev.key==='End') i = pts.length-1;
+    else return;
+    ev.preventDefault(); show(i);
+  };
+  el.onfocus = function(){ show(histIdx < 0 ? pts.length-1 : histIdx); };
+  el.onblur = hide;
 }
 
 // ---------- Team 2 and Team 3 sections ----------
@@ -651,7 +938,10 @@ function flatten(byEntity){
   return all;
 }
 var RESULT_LABEL = {success:'Solved', infeasible:'No solution under these limits', input_error:'Input problem', solver_error:'Solver problem'};
+function recordLabel(id){ return id==='reference' ? 'Reference portfolio' : (id==='baseline_solution' ? 'Suggested portfolio' : 'What-if '+id.replace('scenario_','')); }
 
+// The allocation panel compares two portfolios picked by the reader: left is drawn gray, right blue.
+var allocL = 'reference', allocR = 'baseline_solution', allocPrev = {};
 function renderAllocation(){
   var el = document.getElementById('allocPanel'), data = projectRows('alloc/');
   var port = data.portfolio, assets = Object.keys(data).filter(function(k){ return k!=='portfolio'; });
@@ -664,48 +954,90 @@ function renderAllocation(){
     var i = m.lastIndexOf('.status');
     if(i>0 && i===m.length-7) records.push(m.slice(0,i));
   });
-  var label = function(id){ return id==='reference' ? 'Reference portfolio' : (id==='baseline_solution' ? 'Suggested portfolio' : 'What-if '+id.replace('scenario_','')); };
-  var h = notRealWarning(all);
+  var solved = function(id){ var s = port[id+'.status']; return !!s && s.value==='success'; };
+  if(records.indexOf(allocL)<0) allocL = records[0];
+  if(records.indexOf(allocR)<0) allocR = records[Math.min(1, records.length-1)];
+  var L = allocL, R = allocR;
+  var opts = function(cur){ return records.map(function(id){ return '<option value="'+esc(id)+'"'+(id===cur?' selected':'')+'>'+esc(recordLabel(id))+'</option>'; }).join(''); };
+  var h = notRealWarning(all) +
+    '<div class="toolbar noprint" style="margin-bottom:10px;align-items:center">'+
+    '<label>Compare <select id="allocL">'+opts(L)+'</select></label>'+
+    '<label>with <select id="allocR">'+opts(R)+'</select></label>'+
+    '<button id="allocSwap" type="button">Swap</button></div>';
 
-  // weights chart: reference (gray) vs suggested (blue) on one 0..max axis
+  // Headline numbers for the two picks
+  var er0 = num(port[L+'.expected_return']), er1 = num(port[R+'.expected_return']);
+  var v0 = num(port[L+'.volatility']), v1 = num(port[R+'.volatility']);
+  var delta = function(a, b){ return a===null || b===null ? '' : ' ('+colored(b-a, pp(b-a))+')'; };
+  h += '<p class="howto"><b>'+esc(recordLabel(L))+' &rarr; '+esc(recordLabel(R))+'.</b> Expected return '+pct(er0)+' &rarr; '+pct(er1)+delta(er0, er1)+
+       '; volatility '+pct(v0)+' &rarr; '+pct(v1)+delta(v0, v1)+'.</p>';
+  [L, R].filter(function(id, i, a){ return a.indexOf(id)===i && !solved(id); }).forEach(function(id){
+    var s = port[id+'.status'], ch = port[id+'.change'];
+    h += '<p class="howto">'+esc(recordLabel(id))+': '+esc(RESULT_LABEL[s.value]||s.value)+', so it has no weights to show.'+
+         (ch ? ' Change tested: '+esc(ch.value)+'.' : '')+'</p>';
+  });
+
+  // Weights on one axis shared by every portfolio, so bars stay comparable when the picks change
   var maxW = 0;
-  assets.forEach(function(a){ [num(data[a]['reference.weight']), num(data[a]['baseline_solution.weight'])].forEach(function(v){ if(v!==null && v>maxW) maxW=v; }); });
+  assets.forEach(function(a){ records.forEach(function(id){ var v = num(data[a][id+'.weight']); if(v!==null && v>maxW) maxW = v; }); });
   maxW = maxW || 1;
-  h += '<div class="legend"><span><i style="background:var(--ref)"></i>Reference weight</span><span><i style="background:var(--sug)"></i>Suggested weight</span></div>';
+  h += '<div class="legend"><span><i style="background:var(--ref)"></i>'+esc(recordLabel(L))+'</span><span><i style="background:var(--sug)"></i>'+esc(recordLabel(R))+'</span></div>';
   assets.forEach(function(a){
-    var w0 = num(data[a]['reference.weight']), w1 = num(data[a]['baseline_solution.weight']);
-    var bar = function(cls, v){ return '<div class="wbar '+cls+'"><span class="b" style="width:'+(v===null?0:v/maxW*80)+'%"></span>'+pct(v)+'</div>'; };
+    var w0 = num(data[a][L+'.weight']), w1 = num(data[a][R+'.weight']);
+    // Bars start at their previous width and move to the new one.
+    var bar = function(cls, v){
+      var to = v===null ? 0 : v/maxW*80, k = cls+'|'+a, from = (!animate || allocPrev[k]===undefined) ? (animate ? 0 : to) : allocPrev[k];
+      allocPrev[k] = to;
+      return '<div class="wbar '+cls+'"><span class="b" style="width:'+from+'%" data-w="'+to+'"></span>'+pct(v)+'</div>';
+    };
     h += '<div class="wrow"><div class="eng">'+esc(a)+'<span class="small">Change '+(w0===null||w1===null?'—':colored(w1-w0, pp(w1-w0)))+'</span></div>'+
          '<div class="wbars">'+bar('ref', w0)+bar('sug', w1)+'</div></div>';
   });
 
-  h += '<h3 class="eyebrow" style="margin-top:18px">Portfolios compared</h3><div class="tablewrap"><table style="min-width:620px"><thead><tr><th>Portfolio</th><th class="num">Expected return (per year)</th><th class="num">Volatility (per year)</th><th>Result</th></tr></thead><tbody>';
+  h += '<h3 class="eyebrow" style="margin-top:18px">All portfolios</h3><div class="tablewrap"><table style="min-width:620px"><thead><tr><th>Portfolio</th><th class="num">Expected return (per year)</th><th class="num">Volatility (per year)</th><th>Result</th></tr></thead><tbody>';
   records.forEach(function(id){
     var st = port[id+'.status'], ch = port[id+'.change'];
-    h += '<tr><td class="eng">'+esc(label(id))+(ch?'<span class="small">'+esc(ch.value)+'</span>':'')+'</td>'+
+    var keys = (id===L ? '<i class="key" style="background:var(--ref)"></i>' : '')+(id===R ? '<i class="key" style="background:var(--sug)"></i>' : '');
+    h += '<tr'+(id===L||id===R ? ' class="picked"' : '')+'><td class="eng">'+keys+esc(recordLabel(id))+(ch?'<span class="small">'+esc(ch.value)+'</span>':'')+'</td>'+
       '<td class="num">'+pct(num(port[id+'.expected_return']))+'</td><td class="num">'+pct(num(port[id+'.volatility']))+'</td>'+
       '<td>'+esc(RESULT_LABEL[st.value]||st.value)+statusTag(st.data_status)+'</td></tr>';
   });
   h += '</tbody></table></div>';
 
-  h += '<h3 class="eyebrow" style="margin-top:18px">Where the risk comes from</h3><div class="tablewrap"><table style="min-width:620px"><thead><tr><th>Asset</th>'+
-    '<th class="num">Suggested weight</th><th class="num">Share of risk</th><th class="num detail">Contribution to volatility</th></tr></thead><tbody>';
+  var rk = solved(R) ? R : (solved('baseline_solution') ? 'baseline_solution' : L);
+  h += '<h3 class="eyebrow" style="margin-top:18px">Where the risk comes from: '+esc(recordLabel(rk))+'</h3><div class="tablewrap"><table style="min-width:620px"><thead><tr><th>Asset</th>'+
+    '<th class="num">Weight</th><th class="num">Share of risk</th><th class="num detail">Contribution to volatility</th></tr></thead><tbody>';
   assets.forEach(function(a){
     var r = data[a];
-    h += '<tr><td class="eng">'+esc(a)+'</td><td class="num">'+pct(num(r['baseline_solution.weight']))+'</td>'+
-      '<td class="num">'+pct(num(r['baseline_solution.risk_share']))+'</td>'+
-      '<td class="num detail">'+pp(num(r['baseline_solution.vol_contribution']))+'</td></tr>';
+    h += '<tr><td class="eng">'+esc(a)+'</td><td class="num">'+pct(num(r[rk+'.weight']))+'</td>'+
+      '<td class="num">'+pct(num(r[rk+'.risk_share']))+'</td>'+
+      '<td class="num detail">'+pp(num(r[rk+'.vol_contribution']))+'</td></tr>';
   });
   h += '</tbody></table></div><ul class="notes">'+
-    '<li>Share of risk shows how much of the suggested portfolio\'s ups and downs each asset causes.</li>'+
+    '<li>Share of risk shows how much of the portfolio\'s ups and downs each asset causes.</li>'+
     '<li>Targets and limits are demonstration settings, not approved First Bank policy. The reference portfolio is not established as current holdings.</li>'+
     '<li>What-if cases are hypothetical, and each starts from the same suggested portfolio.</li>'+
     '<li class="detail">'+metaLine(all)+'. Negative risk contributions stay negative.</li></ul>';
   el.innerHTML = h;
+  if(animate && !REDUCED) void el.offsetWidth;
+  Array.prototype.forEach.call(el.querySelectorAll('.wbar .b'), function(b){ b.style.width = b.getAttribute('data-w')+'%'; });
+
+  var re = function(sel){ renderAllocation(); refocus(sel); };
+  document.getElementById('allocL').addEventListener('change', function(){ allocL = this.value; re('#allocL'); });
+  document.getElementById('allocR').addEventListener('change', function(){ allocR = this.value; re('#allocR'); });
+  document.getElementById('allocSwap').addEventListener('click', function(){ var t = allocL; allocL = allocR; allocR = t; re('#allocSwap'); });
 }
 
-var fundWindow = null;
+// Fund panel: period, type filter, sort order and up to three funds picked for a side-by-side view.
+var fundWindow = null, fundType = 'all', fundSort = 'name', fundPick = [];
 var WINDOW_LABEL = {full:'Full history', common:'Common window', t36_now:'Last 36 months', t36_1y:'36 months, a year ago', t60_now:'Last 60 months', t60_1y:'60 months, a year ago'};
+var FUND_MODELS = ['Carhart4','FF3','CAPM','EquityBeta'];
+// Small bar for the compare table, drawn from zero on a scale shared across the row.
+function miniBar(v, lo, hi){
+  var z = (0-lo)/(hi-lo)*100, p = (v-lo)/(hi-lo)*100, l = Math.min(z, p), wd = Math.max(Math.abs(p-z), 0.6);
+  return '<span class="mini" aria-hidden="true"><span class="b '+(v>=0?'pos':'neg')+'" style="left:'+l+'%;width:'+wd+'%"></span>'+
+         (lo<0 ? '<span class="z" style="left:'+z+'%"></span>' : '')+'</span>';
+}
 function renderFunds(){
   var el = document.getElementById('fundPanel'), data = projectRows('fund/'), funds = Object.keys(data);
   if(!funds.length){
@@ -716,24 +1048,95 @@ function renderFunds(){
   all.forEach(function(r){ var w = r.metric.split('.')[0]; if(windows.indexOf(w)<0) windows.push(w); });
   if(windows.indexOf(fundWindow)<0) fundWindow = windows[0];
   var w = fundWindow, inWindow = all.filter(function(r){ return r.metric.indexOf(w+'.')===0; });
+  var hasBench = all.some(function(r){ return /\.perf\.benchmark_id$/.test(r.metric); });
+  // Team 3 fits bond funds with EquityBeta only, so that model marks a bond fund.
+  var isBond = function(f){ return Object.keys(data[f]).some(function(k){ return k.indexOf('.EquityBeta.')>0; }); };
+  var model = function(f){ return FUND_MODELS.filter(function(m){ return data[f][w+'.'+m+'.status']; })[0]; };
+  var g = function(f, k){ var m = model(f); return m ? data[f][w+'.'+m+'.'+k] : undefined; };
+  var p = function(f, k){ return data[f][w+'.perf.'+k]; };
+  fundPick = fundPick.filter(function(f){ return funds.indexOf(f)>=0; });
+
+  var SORTS = [['name','Fund name (A to Z)'],['ann_return','Return (highest first)'],['sharpe','Sharpe ratio (highest first)'],
+               ['ann_vol','Volatility (lowest first)'],['alpha','Alpha (highest first)']];
+  if(hasBench) SORTS = SORTS.concat([['active_return','Active return (highest first)'],['information_ratio','Information ratio (highest first)']]);
+  if(!SORTS.some(function(s){ return s[0]===fundSort; })) fundSort = 'name';
+  var sortVal = function(f){ return fundSort==='alpha' ? (isBond(f) ? null : num(g(f,'alpha.estimate'))) : num(p(f, fundSort)); };
+  var shown = funds.filter(function(f){ return fundType==='all' || (fundType==='bond')===isBond(f); });
+  shown.sort(function(a, b){
+    if(fundSort!=='name'){
+      var va = sortVal(a), vb = sortVal(b);
+      if(va!==vb){ if(va===null) return 1; if(vb===null) return -1; return fundSort==='ann_vol' ? va-vb : vb-va; }
+    }
+    return a.localeCompare(b);
+  });
+
+  var sel = function(id, label, list, cur){
+    return '<label>'+label+' <select id="'+id+'">'+list.map(function(o){ return '<option value="'+esc(o[0])+'"'+(o[0]===cur?' selected':'')+'>'+esc(o[1])+'</option>'; }).join('')+'</select></label>';
+  };
   var h = notRealWarning(all) +
     '<p class="howto">Market sensitivity of 1.0 means the fund moves with the market; above 1.0, it moves more. A positive tilt means the fund leans toward small, value or momentum stocks. Alpha is the return left after these effects.</p>'+
-    '<div class="toolbar noprint" style="margin-bottom:10px"><label>Period: <select id="fundWindow">'+
-    windows.map(function(x){ return '<option value="'+esc(x)+'"'+(x===w?' selected':'')+'>'+esc(WINDOW_LABEL[x]||x)+'</option>'; }).join('')+
-    '</select></label></div><div class="tablewrap"><table><thead><tr><th>Fund</th><th class="num">Return (per year)</th><th class="num">Volatility</th><th class="num">Sharpe ratio</th>'+
+    '<div class="toolbar noprint" style="margin-bottom:6px;align-items:center">'+
+    sel('fundWindow', 'Period:', windows.map(function(x){ return [x, WINDOW_LABEL[x]||x]; }), w)+
+    sel('fundType', 'Show:', [['all','All funds'],['stock','Stock funds'],['bond','Bond funds']], fundType)+
+    sel('fundSort', 'Sort by:', SORTS, fundSort)+'</div>'+
+    '<p class="small" style="margin:0 0 10px">'+esc(WINDOW_LABEL[w]||w)+'. Showing '+shown.length+' of '+funds.length+' funds.'+
+    '<span class="noprint"> Tick up to three funds to compare them side by side.</span></p>';
+
+  // Side-by-side comparison of the picked funds
+  if(fundPick.length===1){
+    h += '<div class="cmpbox noprint"><p class="howto" style="margin:0">'+esc(fundPick[0])+' is picked. Tick one or two more funds to compare them. <button type="button" id="pickClear">Clear</button></p></div>';
+  } else if(fundPick.length>1){
+    var perfRow = function(k){ return function(f){ return num(p(f, k)); }; };
+    var fitRow = function(k){ return function(f){ return num(g(f, k)); }; };
+    var defs = [
+      ['Return (per year)', perfRow('ann_return'), pct, true],
+      ['Volatility', perfRow('ann_vol'), pct],
+      ['Sharpe ratio', perfRow('sharpe'), dec],
+      ['Alpha (per month)', function(f){ return isBond(f) ? 'bond' : num(g(f, 'alpha.estimate')); }, pct, true],
+      ['Market sensitivity', fitRow('mkt_rf.estimate'), dec],
+      ['Small-cap tilt', fitRow('smb.estimate'), dec],
+      ['Value tilt', fitRow('hml.estimate'), dec],
+      ['Momentum tilt', fitRow('mom.estimate'), dec],
+      ['Fit (R²)', fitRow('r2'), dec]];
+    if(hasBench) defs = defs.concat([
+      ['Active return (per year)', perfRow('active_return'), pp, true],
+      ['Tracking error', perfRow('tracking_error'), pct],
+      ['Information ratio', perfRow('information_ratio'), dec]]);
+    h += '<div class="cmpbox"><div class="hhead" style="margin:0 0 6px;align-items:center"><p class="eyebrow" style="margin:0">Side by side &middot; '+esc(WINDOW_LABEL[w]||w)+'</p>'+
+      '<button type="button" id="pickClear" class="noprint">Clear comparison</button></div>'+
+      '<div class="tablewrap"><table class="cmp" style="min-width:'+(200+fundPick.length*190)+'px"><thead><tr><th>Measure</th>'+
+      fundPick.map(function(f){ return '<th class="num">'+esc(f)+'</th>'; }).join('')+'</tr></thead><tbody>';
+    defs.forEach(function(d){
+      var vals = fundPick.map(d[1]), nums = vals.filter(function(v){ return typeof v==='number'; });
+      if(!nums.length && vals.indexOf('bond')<0) return;
+      var lo = Math.min.apply(null, nums.concat([0])), hi = Math.max.apply(null, nums.concat([0]));
+      h += '<tr><td class="eng">'+d[0]+'</td>'+vals.map(function(v){
+        if(v==='bond') return '<td class="num"><span class="small">Not shown for bond funds</span></td>';
+        var txt = d[3] ? colored(v, d[2](v)) : d[2](v);
+        // Bars only when at least two funds have a number in this row
+        return '<td class="num">'+(v===null || nums.length<2 || hi===lo ? txt : '<span class="mcell">'+miniBar(v, lo, hi)+'<span>'+txt+'</span></span>')+'</td>';
+      }).join('')+'</tr>';
+    });
+    h += '</tbody></table></div><p class="small" style="margin:6px 0 0">Bars are scaled within each row, so compare lengths across a row, not down a column. Where a row has negative numbers, the thin line marks zero.</p></div>';
+  }
+
+  h += '<div class="tablewrap"><table style="min-width:1040px"><thead><tr><th class="noprint">Compare</th><th>Fund</th><th class="num">Return (per year)</th><th class="num">Volatility</th><th class="num">Sharpe ratio</th>'+
     '<th class="num">Alpha (per month)</th><th class="num detail">Alpha t-stat</th><th class="num">Market sensitivity</th><th class="num">Small-cap tilt</th><th class="num">Value tilt</th><th class="num">Momentum tilt</th>'+
-    '<th class="num">Fit (R²)</th><th class="num detail">Months</th><th>Notes</th></tr></thead><tbody>';
-  funds.forEach(function(f){
-    var r = data[f], model = ['Carhart4','FF3','CAPM','EquityBeta'].filter(function(m){ return r[w+'.'+m+'.status']; })[0];
-    var g = function(k){ return model ? r[w+'.'+model+'.'+k] : undefined; };
-    var st = g('status'), ok = st && st.value==='ok', first = st || r[w+'.perf.status'];
-    var note = !st ? 'No factor result' : (ok ? (model==='EquityBeta' ? 'Bond fund: stock market exposure only' : '') : 'Not enough history for a result');
-    var proxy = num(g('proxy_obs')), corr = num(g('correlation'));
-    h += '<tr><td class="eng">'+esc(f)+'<span class="small detail">Model: '+esc(model||'none')+'</span></td>'+
-      '<td class="num">'+colored(num(r[w+'.perf.ann_return']), pct(num(r[w+'.perf.ann_return'])))+'</td><td class="num">'+pct(num(r[w+'.perf.ann_vol']))+'</td><td class="num">'+dec(num(r[w+'.perf.sharpe']))+'</td>'+
-      '<td class="num">'+colored(num(g('alpha.estimate')), pct(num(g('alpha.estimate'))))+'</td><td class="num detail">'+dec(num(g('alpha.t_stat')))+'</td>'+
-      '<td class="num">'+dec(num(g('mkt_rf.estimate')))+'</td><td class="num">'+dec(num(g('smb.estimate')))+'</td><td class="num">'+dec(num(g('hml.estimate')))+'</td><td class="num">'+dec(num(g('mom.estimate')))+'</td>'+
-      '<td class="num">'+dec(num(g('r2')))+'</td><td class="num detail">'+(num(g('nobs'))===null?'—':num(g('nobs')))+'</td>'+
+    '<th class="num">Fit (R²)</th><th class="num detail">Months</th><th style="min-width:220px">Notes</th></tr></thead><tbody>';
+  if(!shown.length) h += '<tr><td colspan="14"><span class="small">No '+(fundType==='bond'?'bond':'stock')+' funds in these results.</span></td></tr>';
+  shown.forEach(function(f){
+    var r = data[f], m = model(f), gg = function(k){ return g(f, k); };
+    var st = gg('status'), ok = st && st.value==='ok', first = st || p(f, 'status');
+    var note = !st ? 'No factor result' : (ok ? (m==='EquityBeta' ? 'Bond fund: stock market exposure only' : '') : 'Not enough history for a result');
+    var proxy = num(gg('proxy_obs')), corr = num(gg('correlation'));
+    var on = fundPick.indexOf(f)>=0, full = fundPick.length>=3 && !on;
+    h += '<tr'+(on?' class="picked"':'')+'><td class="noprint"><input type="checkbox" class="pick" data-f="'+esc(f)+'" aria-label="Compare '+esc(f)+'"'+
+      (on?' checked':'')+(full?' disabled title="Up to three funds at a time"':'')+'></td>'+
+      '<td class="eng">'+esc(f)+'<span class="small detail">Model: '+esc(m||'none')+'</span></td>'+
+      '<td class="num">'+colored(num(p(f,'ann_return')), pct(num(p(f,'ann_return'))))+'</td><td class="num">'+pct(num(p(f,'ann_vol')))+'</td><td class="num">'+dec(num(p(f,'sharpe')))+'</td>'+
+      '<td class="num">'+colored(num(gg('alpha.estimate')), pct(num(gg('alpha.estimate'))))+'</td><td class="num detail">'+dec(num(gg('alpha.t_stat')))+'</td>'+
+      '<td class="num">'+dec(num(gg('mkt_rf.estimate')))+'</td><td class="num">'+dec(num(gg('smb.estimate')))+'</td><td class="num">'+dec(num(gg('hml.estimate')))+'</td><td class="num">'+dec(num(gg('mom.estimate')))+'</td>'+
+      '<td class="num">'+dec(num(gg('r2')))+'</td><td class="num detail">'+(num(gg('nobs'))===null?'—':num(gg('nobs')))+'</td>'+
       '<td>'+esc(note)+statusTag(first && first.data_status)+
       (corr!==null?'<span class="small">Correlation with the stock market: '+dec(corr)+'</span>':'')+
       (proxy?'<span class="small">Includes '+proxy+' months of stand-in data</span>':'')+'</td></tr>';
@@ -741,20 +1144,20 @@ function renderFunds(){
   h += '</tbody></table></div>';
 
   // Against the benchmark (Team 3 contract 1.5+): shown only when the file carries the comparison.
-  var hasBench = all.some(function(r){ return /\.perf\.benchmark_id$/.test(r.metric); });
   if(hasBench){
     h += '<h3 class="eyebrow" style="margin-top:18px">Against its benchmark</h3>'+
       '<p class="howto">Active return is how much more or less the fund earned than its benchmark fund, per year. Tracking error is how much that gap moves around. The information ratio divides the first by the second: a higher number means a steadier lead.</p>'+
       '<div class="tablewrap"><table style="min-width:880px"><thead><tr><th>Fund</th><th>Benchmark fund</th><th class="num">Active return (per year)</th>'+
       '<th class="num">Tracking error</th><th class="num">Information ratio</th><th class="num">Sensitivity to benchmark</th><th class="num detail">Months compared</th><th style="min-width:230px">Notes</th></tr></thead><tbody>';
-    funds.forEach(function(f){
-      var r = data[f], b = function(k){ return r[w+'.perf.'+k]; };
+    if(!shown.length) h += '<tr><td colspan="8"><span class="small">No funds of this type.</span></td></tr>';
+    shown.forEach(function(f){
+      var r = data[f], b = function(k){ return p(f, k); };
       var id = b('benchmark_id'), ar = num(b('active_return')), n = num(b('n_obs_relative'));
       var beta = num(r[w+'.Benchmark.benchmark.estimate']);
       var note = !b('status') && !id ? 'No result for this period' :
         (!id ? 'No single benchmark fund' : (ar===null ? 'Benchmark history too short for this period' : ''));
       var src = id || b('status');
-      h += '<tr><td class="eng">'+esc(f)+'</td><td>'+(id?esc(id.value):'—')+'</td>'+
+      h += '<tr'+(fundPick.indexOf(f)>=0?' class="picked"':'')+'><td class="eng">'+esc(f)+'</td><td>'+(id?esc(id.value):'—')+'</td>'+
         '<td class="num">'+colored(ar, pp(ar))+'</td><td class="num">'+pct(num(b('tracking_error')))+'</td>'+
         '<td class="num">'+dec(num(b('information_ratio')))+'</td><td class="num">'+dec(beta)+'</td>'+
         '<td class="num detail">'+(n===null?'—':n)+'</td>'+
@@ -773,7 +1176,20 @@ function renderFunds(){
       '<li>Some benchmark funds changed their index or strategy over time. Team 3 decides which months are compared, and fewer months than the period can mean the benchmark fund\'s history is shorter.</li>' : '')+
     '<li class="detail">'+metaLine(inWindow)+'.</li></ul>';
   el.innerHTML = h;
-  document.getElementById('fundWindow').addEventListener('change', function(){ fundWindow = this.value; renderFunds(); });
+
+  var re = function(selector){ renderFunds(); refocus(selector); };
+  document.getElementById('fundWindow').addEventListener('change', function(){ fundWindow = this.value; re('#fundWindow'); });
+  document.getElementById('fundType').addEventListener('change', function(){ fundType = this.value; re('#fundType'); });
+  document.getElementById('fundSort').addEventListener('change', function(){ fundSort = this.value; re('#fundSort'); });
+  Array.prototype.forEach.call(el.querySelectorAll('.pick'), function(c){
+    c.addEventListener('change', function(){
+      var f = c.getAttribute('data-f'), i = fundPick.indexOf(f);
+      if(i>=0) fundPick.splice(i, 1); else if(fundPick.length<3) fundPick.push(f);
+      re('#fundPanel .pick[data-f="'+cssq(f)+'"]');
+    });
+  });
+  var pc = document.getElementById('pickClear');
+  if(pc) pc.addEventListener('click', function(){ fundPick = []; re('#fundSort'); });
 }
 
 // ---------- Controls ----------
@@ -828,15 +1244,28 @@ document.getElementById('tplBtn').addEventListener('click', function(){
   download('dashboard_template.csv', ex);
 });
 document.getElementById('expBtn').addEventListener('click', function(){
-  var m = latest(), out = ['signal,today,unit,score,chg_3m,chg_1y,reading,what_it_means,data_status,checked_by_team4,date,release_id'];
+  var m = latest(), out = ['signal,today,unit,score,chg_3m,chg_1y,reading,what_it_means,data_status,checked_by_team4,date,release_id,unusual_cutoff'];
   var q = function(s){ return '"'+String(s).replace(/"/g,'""')+'"'; };
   ENGINES.forEach(function(e){
     var s = state(e,m); if(s.z===undefined) return;
-    out.push([q(e.name),s.lv===undefined?'':s.lv,s.unit,s.z,s.c3===undefined?'':s.c3,s.c1===undefined?'':s.c1,zoneLabel(s.z),q(meaning(e,s.z)),s.status,s.validated,s.date,s.release].join(','));
+    out.push([q(e.name),s.lv===undefined?'':s.lv,s.unit,s.z,s.c3===undefined?'':s.c3,s.c1===undefined?'':s.c1,zoneLabel(s.z),q(meaning(e,s.z)),s.status,s.validated,s.date,s.release,cutTxt()].join(','));
   });
   download('dashboard_export.csv', out.join('\n')+'\n');
 });
 document.getElementById('printBtn').addEventListener('click', function(){ window.print(); });
+// Cutoff slider: redraw without animations so the bars follow the slider.
+function setCut(v){
+  CUT = Math.round(v*10)/10;
+  document.getElementById('cut').value = CUT;
+  animate = false; render(); animate = true;
+}
+document.getElementById('cut').addEventListener('input', function(){ setCut(+this.value); });
+document.getElementById('cutReset').addEventListener('click', function(){ setCut(MEMO_CUT); refocus('#cut'); });
+var resizeTimer;
+window.addEventListener('resize', function(){
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(function(){ if(histId) drawHistory(); }, 150);
+});
 render();
 
 // When served from a web address (e.g. GitHub Pages), read inputs/<engine id>.csv automatically.
