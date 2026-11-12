@@ -7,6 +7,16 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <title>Cross-Asset Macro Risk Dashboard</title>
+<meta name="description" content="Team 5's macro risk dashboard for the First Bank practicum: eight risk signals on one scale, asset allocation and fund report cards.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Cross-Asset Macro Risk Dashboard">
+<meta property="og:description" content="Team 5's macro risk dashboard for the First Bank practicum: eight risk signals on one scale, asset allocation and fund report cards.">
+<meta property="og:url" content="https://jian-chen998.github.io/team5-macro-dashboard/">
+<meta property="og:image" content="https://jian-chen998.github.io/team5-macro-dashboard/preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b2545'/%3E%3Crect x='6' y='8' width='14' height='4' rx='2' fill='%23ffffff'/%3E%3Crect x='6' y='14' width='20' height='4' rx='2' fill='%23ffffff' fill-opacity='.65'/%3E%3Crect x='6' y='20' width='10' height='4' rx='2' fill='%23e0302a'/%3E%3C/svg%3E">
 <style>
 /* Color roles. Values come from the data-viz reference palette (validated light and dark).
    Diverging pair blue <-> orange: blue = unusually low (the memo's compression zone),
@@ -1020,6 +1030,184 @@ function drawHistory(){
   el.onblur = hide;
 }
 
+// ---------- Charts for Team 2 and Team 3 ----------
+// Efficient frontier: Team 2's minimum-variance curve with the reference and suggested portfolios.
+// All three use the same baseline assumptions, so they can share one chart. What-if cases do not.
+var frontierCache = null;
+function drawFrontier(){
+  var el = document.getElementById('frontierPlot'); if(!el || !frontierCache) return;
+  var fr = frontierCache.fr, port = frontierCache.port;
+  var keys = [];
+  Object.keys(fr).forEach(function(m){ var k = m.split('.')[0]; if(/^p\d+$/.test(k) && keys.indexOf(k)<0) keys.push(k); });
+  keys.sort();
+  var pts = keys.map(function(k){
+    var st = fr[k+'.status'];
+    return {k:k, ok: !!st && st.value==='success', r:num(fr[k+'.expected_return']), v:num(fr[k+'.volatility'])};
+  });
+  var good = pts.filter(function(p){ return p.ok && p.r!==null && p.v!==null; });
+  var marks = [];
+  var gr = num(fr['gmv.expected_return']), gv = num(fr['gmv.volatility']);
+  if(gr!==null && gv!==null) marks.push({kind:'gmv', label:'Lowest-risk mix', r:gr, v:gv});
+  [['reference','ref'],['baseline_solution','sug']].forEach(function(x){
+    var r = num(port[x[0]+'.expected_return']), v = num(port[x[0]+'.volatility']);
+    if(r!==null && v!==null) marks.push({kind:x[1], label:recordLabel(x[0]), r:r, v:v});
+  });
+  if(!good.length){ el.innerHTML = '<div class="waiting">Team 2\'s result has no frontier points.</div>'; return; }
+  var all = good.concat(marks);
+  var vx = all.map(function(p){ return p.v; }), ry = all.map(function(p){ return p.r; });
+  var x0 = Math.min.apply(null, vx), x1 = Math.max.apply(null, vx), y0 = Math.min.apply(null, ry), y1 = Math.max.apply(null, ry);
+  var padx = (x1-x0)*0.12 || 0.01, pady = (y1-y0)*0.18 || 0.005;
+  x0 -= padx; x1 += padx; y0 -= pady; y1 += pady;
+  var W = Math.max(300, Math.round(el.clientWidth || 640)), H = 300, ml = 56, mr = 24, mt = 26, mb = 42;
+  var pw = W-ml-mr, ph = H-mt-mb;
+  var X = function(v){ return ml + (v-x0)/(x1-x0)*pw; }, Y = function(r){ return mt + (y1-r)/(y1-y0)*ph; };
+  var sx = niceStep(x1-x0, 5), sy = niceStep(y1-y0, 4);
+  var s = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" aria-hidden="true">';
+  for(var v = Math.ceil(y0/sy)*sy; v <= y1; v += sy){
+    var y = Y(v);
+    s += '<line x1="'+ml+'" x2="'+(ml+pw)+'" y1="'+y+'" y2="'+y+'" style="stroke:var(--grid)"/>'+
+         '<text x="'+(ml-8)+'" y="'+(y+4)+'" text-anchor="end">'+fmtTick(v, 'decimal', sy)+'</text>';
+  }
+  for(var u = Math.ceil(x0/sx)*sx; u <= x1; u += sx){
+    var x = X(u);
+    s += '<line x1="'+x+'" x2="'+x+'" y1="'+(mt+ph)+'" y2="'+(mt+ph+4)+'" style="stroke:var(--axis)"/>'+
+         '<text x="'+x+'" y="'+(mt+ph+18)+'" text-anchor="middle">'+fmtTick(u, 'decimal', sx)+'</text>';
+  }
+  s += '<line x1="'+ml+'" x2="'+(ml+pw)+'" y1="'+(mt+ph)+'" y2="'+(mt+ph)+'" style="stroke:var(--axis)"/>'+
+       '<text x="'+(ml+pw/2)+'" y="'+(H-4)+'" text-anchor="middle">Volatility (per year) &rarr;</text>'+
+       '<text x="'+ml+'" y="'+(mt-10)+'">&uarr; Expected return (per year)</text>';
+  // The curve breaks wherever a point failed (Team 2: failed points remain failed).
+  var d = '', pen = false;
+  pts.forEach(function(p){
+    if(p.ok && p.r!==null && p.v!==null){ d += (pen ? 'L' : 'M')+X(p.v).toFixed(1)+' '+Y(p.r).toFixed(1); pen = true; }
+    else pen = false;
+  });
+  s += '<path d="'+d+'" style="fill:none;stroke:var(--ink-2);stroke-width:2;stroke-linejoin:round;stroke-linecap:round"/>';
+  good.forEach(function(p){ s += '<circle cx="'+X(p.v)+'" cy="'+Y(p.r)+'" r="2.5" style="fill:var(--ink-2)"/>'; });
+  // Labels stay inside the plot: beside the point when there is room, otherwise on the other side.
+  var label = function(x, y, text, above, strong){
+    var w = text.length * (strong ? 6.6 : 6.1), st = strong ? ' style="fill:var(--ink);font-weight:600"' : '';
+    if(above){
+      // Up and to the left first: the frontier rises to the right of an optimized point.
+      if(x - 10 - w >= ml) return '<text x="'+(x-10)+'" y="'+(y-10)+'" text-anchor="end"'+st+'>'+esc(text)+'</text>';
+      var cx = Math.max(ml + w/2, Math.min(ml + pw - w/2, x));
+      return '<text x="'+cx+'" y="'+(y-12)+'" text-anchor="middle"'+st+'>'+esc(text)+'</text>';
+    }
+    if(x + 11 + w <= ml + pw) return '<text x="'+(x+11)+'" y="'+(y+4)+'" text-anchor="start"'+st+'>'+esc(text)+'</text>';
+    var bx = Math.max(ml + w/2, Math.min(ml + pw - w/2, x));   // no room on the right: below the point
+    return '<text x="'+bx+'" y="'+(y+20)+'" text-anchor="middle"'+st+'>'+esc(text)+'</text>';
+  };
+  var narrow = pw < 420;
+  marks.forEach(function(m){
+    var x = X(m.v), y = Y(m.r), text = narrow && m.kind!=='gmv' ? (m.kind==='ref' ? 'Reference' : 'Suggested') : m.label;
+    if(m.kind==='gmv') s += '<circle cx="'+x+'" cy="'+y+'" r="5.5" style="fill:var(--surface);stroke:var(--ink);stroke-width:2"/>'+label(x, y, 'Lowest-risk mix', false, false);
+    else s += '<circle cx="'+x+'" cy="'+y+'" r="6.5" style="fill:var(--'+m.kind+');stroke:var(--surface);stroke-width:2"/>'+label(x, y, text, m.kind==='sug', true);
+  });
+  s += '<circle id="fc" r="9" style="fill:none;stroke:var(--ink);stroke-width:1.5;display:none"/>'+
+       '<rect x="'+ml+'" y="'+mt+'" width="'+pw+'" height="'+ph+'" style="fill:transparent"/></svg>';
+  el.innerHTML = s;
+  var svg = el.querySelector('svg'), ring = svg.querySelector('#fc');
+  var targets = marks.concat(good.map(function(p){ return {kind:'pt', label:'Frontier point', r:p.r, v:p.v}; }));
+  var show = function(t, cx, cy){
+    ring.setAttribute('cx', X(t.v)); ring.setAttribute('cy', Y(t.r)); ring.style.display = '';
+    tipLines([['tv', t.label], ['', 'Expected return ' + pct(t.r)], ['', 'Volatility ' + pct(t.v)],
+              ['tn', t.kind==='pt' ? 'Lowest volatility the model finds for this return.' :
+                     (t.kind==='gmv' ? 'The least volatile mix within the limits.' : 'Under the same baseline assumptions as the curve.')]], cx, cy);
+  };
+  var hide = function(){ ring.style.display = 'none'; hideTip(); };
+  svg.addEventListener('pointermove', function(ev){
+    var b = svg.getBoundingClientRect(), sxp = (ev.clientX-b.left)*W/b.width, syp = (ev.clientY-b.top)*H/b.height, best = null, bd = 24;
+    targets.forEach(function(t){ var dd = Math.hypot(X(t.v)-sxp, Y(t.r)-syp); if(dd < bd || (t.kind!=='pt' && dd < bd + 6)){ bd = dd; best = t; } });
+    if(best) show(best, ev.clientX, ev.clientY); else hide();
+  });
+  svg.addEventListener('pointerleave', hide);
+  var ki = -1;
+  el.onkeydown = function(ev){
+    if(ev.key!=='ArrowLeft' && ev.key!=='ArrowRight') return;
+    ev.preventDefault();
+    ki = ev.key==='ArrowRight' ? Math.min(targets.length-1, ki+1) : Math.max(0, ki-1);
+    var b = svg.getBoundingClientRect(), t = targets[ki];
+    show(t, b.left + X(t.v)*b.width/W, b.top + Y(t.r)*b.height/H);
+  };
+  el.onblur = hide;
+}
+
+// Generic time-series chart with a shared crosshair. series: [{name, color, dash, pts:[{t, v, date}]}]
+function lineChart(el, series, fmt){
+  var all = [];
+  series.forEach(function(s){ all = all.concat(s.pts); });
+  if(!all.length){ el.innerHTML = '<div class="waiting">No monthly data for this fund and period.</div>'; return; }
+  var W = Math.max(300, Math.round(el.clientWidth || 640)), H = 260, ml = 54, mr = 92, mt = 14, mb = 30;
+  var pw = W-ml-mr, ph = H-mt-mb;
+  var t0 = Math.min.apply(null, all.map(function(p){ return p.t; })), t1 = Math.max.apply(null, all.map(function(p){ return p.t; }));
+  var lo = Math.min(0, Math.min.apply(null, all.map(function(p){ return p.v; }))), hi = Math.max(0, Math.max.apply(null, all.map(function(p){ return p.v; })));
+  var pad = (hi-lo)*0.1 || 0.01; lo -= pad; hi += pad;
+  var X = function(t){ return t1===t0 ? ml+pw/2 : ml+(t-t0)/(t1-t0)*pw; }, Y = function(v){ return mt+(hi-v)/(hi-lo)*ph; };
+  var step = niceStep(hi-lo, 4);
+  var s = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" aria-hidden="true">';
+  for(var v = Math.ceil(lo/step)*step; v <= hi; v += step){
+    var y = Y(v), zero = Math.abs(v) < step/1e6;
+    s += '<line x1="'+ml+'" x2="'+(ml+pw)+'" y1="'+y+'" y2="'+y+'" style="stroke:var('+(zero?'--axis':'--grid')+')"/>'+
+         '<text x="'+(ml-8)+'" y="'+(y+4)+'" text-anchor="end">'+fmt(zero ? 0 : v, step)+'</text>';
+  }
+  xTicks(t0, t1).forEach(function(k){
+    var x = X(k.t);
+    s += '<line x1="'+x+'" x2="'+x+'" y1="'+(mt+ph)+'" y2="'+(mt+ph+4)+'" style="stroke:var(--axis)"/>'+
+         '<text x="'+x+'" y="'+(mt+ph+18)+'" text-anchor="middle">'+esc(k.label)+'</text>';
+  });
+  // End labels, nudged apart when the two lines finish close together
+  var ends = series.map(function(sr){ var p = sr.pts[sr.pts.length-1]; return {sr:sr, y:Y(p.v), p:p}; }).sort(function(a, b){ return a.y-b.y; });
+  for(var i=1;i<ends.length;i++) if(ends[i].y - ends[i-1].y < 14) ends[i].y = ends[i-1].y + 14;
+  series.forEach(function(sr){
+    s += '<path d="'+sr.pts.map(function(p, i){ return (i?'L':'M')+X(p.t).toFixed(1)+' '+Y(p.v).toFixed(1); }).join('')+
+         '" style="fill:none;stroke:'+sr.color+';stroke-width:2;stroke-linejoin:round;stroke-linecap:round'+(sr.dash?';stroke-dasharray:'+sr.dash:'')+'"/>';
+  });
+  ends.forEach(function(e){
+    var p = e.p;
+    s += '<circle cx="'+X(p.t)+'" cy="'+Y(p.v)+'" r="4" style="fill:'+e.sr.color+';stroke:var(--surface);stroke-width:2"/>'+
+         '<text x="'+(X(p.t)+9)+'" y="'+(e.y+4)+'" style="fill:var(--ink);font-weight:600">'+esc(fmt(p.v))+'</text>';
+  });
+  s += '<line id="lx" y1="'+mt+'" y2="'+(mt+ph)+'" style="stroke:var(--ink-2);stroke-width:1;display:none"/>'+
+       '<rect x="'+ml+'" y="'+mt+'" width="'+pw+'" height="'+ph+'" style="fill:transparent"/></svg>';
+  el.innerHTML = s;
+  var svg = el.querySelector('svg'), lx = svg.querySelector('#lx'), base = series[0].pts, idx = -1;
+  var show = function(i, cx, cy){
+    idx = i; var t = base[i].t, x = X(t);
+    lx.setAttribute('x1', x); lx.setAttribute('x2', x); lx.style.display = '';
+    var lines = [['tv', prettyDate(base[i].date)]];
+    series.forEach(function(sr){ var p = sr.pts.filter(function(q){ return q.t===t; })[0]; if(p) lines.push(['', sr.name+': '+fmt(p.v)]); });
+    if(cx===undefined){ var b = svg.getBoundingClientRect(); cx = b.left + x*b.width/W; cy = b.top + mt*b.height/H + 20; }
+    tipLines(lines, cx, cy);
+  };
+  var hide = function(){ lx.style.display = 'none'; hideTip(); };
+  svg.addEventListener('pointermove', function(ev){
+    var b = svg.getBoundingClientRect(), sxp = (ev.clientX-b.left)*W/b.width, best = 0;
+    base.forEach(function(p, i){ if(Math.abs(X(p.t)-sxp) < Math.abs(X(base[best].t)-sxp)) best = i; });
+    show(best, ev.clientX, ev.clientY);
+  });
+  svg.addEventListener('pointerleave', hide);
+  el.onkeydown = function(ev){
+    var i = idx < 0 ? base.length-1 : idx;
+    if(ev.key==='ArrowLeft') i = Math.max(0, i-1); else if(ev.key==='ArrowRight') i = Math.min(base.length-1, i+1); else return;
+    ev.preventDefault(); show(i);
+  };
+  el.onblur = hide;
+}
+// Team 3 series.csv: cumulative growth above cash, actual vs the part the factor model explains.
+var fundHistF = null, fundSeriesCache = null;
+function drawFundHistory(){
+  var el = document.getElementById('fundPlot'); if(!el || !fundSeriesCache || !fundHistF) return;
+  var byDate = fundSeriesCache[fundHistF] || {}, dates = Object.keys(byDate).sort();
+  var cum = function(field){
+    var c = 1, out = [];
+    dates.forEach(function(d){ var r = byDate[d][field]; if(r===undefined || isNaN(r)) return; c *= (1 + r); out.push({t:toTime(d), v:c-1, date:d}); });
+    return out;
+  };
+  lineChart(el, [{name:'Fund', color:'var(--ink)', pts:cum('excess_return')},
+                 {name:'Explained by the factors', color:'var(--sug)', dash:'6 4', pts:cum('fitted')}],
+            function(v, step){ return (v>0?'+':(v<0?'−':''))+Math.abs(v*100).toFixed(step!==undefined && step*100 < 1 ? 1 : 0)+'%'; });
+}
+
 // ---------- Team 2 and Team 3 sections ----------
 // Rows by entity, latest date for each metric. Unlike latest() this keeps text values such as status.
 function projectRows(prefix){
@@ -1061,7 +1249,7 @@ function recordLabel(id){ return id==='reference' ? 'Reference portfolio' : (id=
 var allocL = 'reference', allocR = 'baseline_solution', allocPrev = {};
 function renderAllocation(){
   var el = document.getElementById('allocPanel'), data = projectRows('alloc/');
-  var port = data.portfolio, assets = Object.keys(data).filter(function(k){ return k!=='portfolio'; });
+  var port = data.portfolio, assets = Object.keys(data).filter(function(k){ return k!=='portfolio' && k!=='frontier'; });
   if(!port || !assets.length){
     el.innerHTML = '<div class="waiting">Waiting for Team 2\'s results.</div>';
     return;
@@ -1111,6 +1299,20 @@ function renderAllocation(){
          '<div class="wbars">'+bar('ref', w0)+bar('sug', w1)+'</div></div>';
   });
 
+  // Efficient frontier (Team 2's frontier scan), when the result has one
+  var fr = data.frontier, hasFrontier = !!fr && Object.keys(fr).some(function(m){ return /^p\d+\.volatility$/.test(m); });
+  if(hasFrontier){
+    var gaps = Object.keys(fr).some(function(m){ return /^p\d+\.status$/.test(m) && fr[m].value!=='success'; });
+    h += '<h3 class="eyebrow" style="margin-top:20px">Risk and return</h3>'+
+      '<p class="howto">The curve is Team 2\'s efficient frontier: for each expected return, the lowest volatility the model can reach within the same limits. '+
+      'A portfolio to the right of the curve takes more risk than needed for its return. Hover or use the arrow keys to read each point.</p>'+
+      '<div class="legend"><span><i style="background:var(--ref)"></i>'+esc(recordLabel('reference'))+'</span><span><i style="background:var(--sug)"></i>'+esc(recordLabel('baseline_solution'))+'</span>'+
+      '<span><i style="background:var(--surface);border:2px solid var(--ink);width:10px;height:10px;border-radius:50%"></i>Lowest-risk mix</span>'+
+      '<span><i style="background:var(--ink-2);height:2px;width:16px;vertical-align:3px"></i>Efficient frontier</span></div>'+
+      '<div class="hplot" id="frontierPlot" tabindex="0" role="img" aria-label="Efficient frontier with the reference and suggested portfolios. Use the arrow keys to read each point."></div>'+
+      '<p class="small" style="margin:6px 0 0">What-if cases use their own assumptions, so they are not drawn on this curve.'+(gaps ? ' Gaps in the curve are points the solver could not solve.' : '')+'</p>';
+  }
+
   h += '<h3 class="eyebrow" style="margin-top:18px">All portfolios</h3><div class="tablewrap"><table style="min-width:620px"><thead><tr><th>Portfolio</th><th class="num">Expected return (per year)</th><th class="num">Volatility (per year)</th><th>Result</th></tr></thead><tbody>';
   records.forEach(function(id){
     var st = port[id+'.status'], ch = port[id+'.change'];
@@ -1138,6 +1340,8 @@ function renderAllocation(){
   el.innerHTML = h;
   if(animate && !REDUCED) void el.offsetWidth;
   Array.prototype.forEach.call(el.querySelectorAll('.wbar .b'), function(b){ b.style.width = b.getAttribute('data-w')+'%'; });
+  frontierCache = hasFrontier ? {fr:fr, port:port} : null;
+  drawFrontier();
 
   var re = function(sel){ renderAllocation(); refocus(sel); };
   document.getElementById('allocL').addEventListener('change', function(){ allocL = this.value; re('#allocL'); });
@@ -1171,6 +1375,10 @@ function renderFunds(){
   var model = function(f){ return FUND_MODELS.filter(function(m){ return data[f][w+'.'+m+'.status']; })[0]; };
   var g = function(f, k){ var m = model(f); return m ? data[f][w+'.'+m+'.'+k] : undefined; };
   var p = function(f, k){ return data[f][w+'.perf.'+k]; };
+  var sharpeCI = function(f){
+    var lo = num(p(f, 'sharpe_ci_low')), hi = num(p(f, 'sharpe_ci_high'));
+    return lo===null || hi===null ? '' : '<span class="small">'+dec(lo)+' to '+dec(hi)+'</span>';
+  };
   fundPick = fundPick.filter(function(f){ return funds.indexOf(f)>=0; });
 
   var SORTS = [['name','Fund name (A to Z)'],['ann_return','Return (highest first)'],['sharpe','Sharpe ratio (highest first)'],
@@ -1250,7 +1458,7 @@ function renderFunds(){
     h += '<tr'+(on?' class="picked"':'')+'><td class="noprint"><input type="checkbox" class="pick" data-f="'+esc(f)+'" aria-label="Compare '+esc(f)+'"'+
       (on?' checked':'')+(full?' disabled title="Up to three funds at a time"':'')+'></td>'+
       '<td class="eng">'+esc(f)+'<span class="small detail">Model: '+esc(m||'none')+'</span></td>'+
-      '<td class="num">'+colored(num(p(f,'ann_return')), pct(num(p(f,'ann_return'))))+'</td><td class="num">'+pct(num(p(f,'ann_vol')))+'</td><td class="num">'+dec(num(p(f,'sharpe')))+'</td>'+
+      '<td class="num">'+colored(num(p(f,'ann_return')), pct(num(p(f,'ann_return'))))+'</td><td class="num">'+pct(num(p(f,'ann_vol')))+'</td><td class="num">'+dec(num(p(f,'sharpe')))+sharpeCI(f)+'</td>'+
       '<td class="num">'+colored(num(gg('alpha.estimate')), pct(num(gg('alpha.estimate'))))+'</td><td class="num detail">'+dec(num(gg('alpha.t_stat')))+'</td>'+
       '<td class="num">'+dec(num(gg('mkt_rf.estimate')))+'</td><td class="num">'+dec(num(gg('smb.estimate')))+'</td><td class="num">'+dec(num(gg('hml.estimate')))+'</td><td class="num">'+dec(num(gg('mom.estimate')))+'</td>'+
       '<td class="num">'+dec(num(gg('r2')))+'</td><td class="num detail">'+(num(gg('nobs'))===null?'—':num(gg('nobs')))+'</td>'+
@@ -1283,10 +1491,39 @@ function renderFunds(){
     h += '</tbody></table></div>';
   }
 
+  // Return over time (Team 3 series.csv), for windows that have monthly series
+  var ser = {}, anySeries = false;
+  rows.forEach(function(r){
+    var m = r.metric || '';
+    if(m.indexOf('.series.')<0 || (r.entity||'').indexOf('fund/')!==0) return;
+    anySeries = true;
+    if(m.indexOf(w+'.series.')!==0) return;
+    var f = r.entity.slice(5), v = parseFloat(r.value);
+    if(isNaN(v)) return;
+    var day = (ser[f] = ser[f] || {})[r.date] = (ser[f][r.date] || {});
+    day[m.slice(m.lastIndexOf('.')+1)] = v;
+  });
+  var serFunds = shown.filter(function(f){ return ser[f]; });
+  if(anySeries){
+    h += '<h3 class="eyebrow" style="margin-top:20px">Return over time</h3>';
+    if(!serFunds.length){
+      h += '<p class="howto">Monthly history is available for '+windows.filter(function(x){ return rows.some(function(r){ return (r.metric||'').indexOf(x+'.series.')===0; }); })
+        .map(function(x){ return WINDOW_LABEL[x]||x; }).join(' and ')+'. Choose it under Period above to see the chart.</p>';
+    } else {
+      if(serFunds.indexOf(fundHistF)<0) fundHistF = serFunds[0];
+      h += '<p class="howto">Cumulative return above cash (the risk-free rate). The dashed line is the part the factor model explains: market, size, value and momentum for stock funds, the stock market alone for bond funds. The gap between the lines is what the fund did beyond those factors.</p>'+
+        '<div class="toolbar noprint" style="margin-bottom:6px;align-items:center">'+sel('fundHist', 'Fund:', serFunds.map(function(f){ return [f, f]; }), fundHistF)+'</div>'+
+        '<div class="legend"><span><i style="background:var(--ink);height:2px;width:16px;vertical-align:3px"></i>Fund</span>'+
+        '<span><i style="background:var(--sug);height:2px;width:16px;vertical-align:3px"></i>Explained by the factors (dashed)</span></div>'+
+        '<div class="hplot" id="fundPlot" tabindex="0" role="img" aria-label="'+esc(fundHistF)+' cumulative return above cash, and the part explained by the factors. Use the arrow keys to read each month."></div>';
+    }
+  }
+
   var dates = inWindow.map(function(r){ return r.date; }).filter(Boolean).sort();
   h += '<ul class="notes">'+
     '<li>Returns are after fund expenses, but before advisory fees and taxes.</li>'+
     '<li>Alpha is per month and not annualized. Team 3 is still reviewing which differences are meaningful.</li>'+
+    (all.some(function(r){ return /\.perf\.sharpe_ci_low$/.test(r.metric); }) ? '<li>The range under each Sharpe ratio is its 95% interval. When two funds\' ranges overlap, the difference between them may be chance.</li>' : '')+
     '<li>For bond funds, only their link to the stock market is shown. Their alpha is not a measure of manager skill.</li>'+
     '<li>"Not enough history" means no result, not a weak result.'+(dates.length?' Data through '+esc(prettyDate(dates[dates.length-1]))+'.':'')+'</li>'+
     (hasBench ? '<li>Each benchmark fund is an index fund (ETF) that tracks an index close to the fund\'s own benchmark. Its returns are after the ETF\'s fees, so an active return near zero means "about the same as the ETF", not "the same as the index".</li>'+
@@ -1307,6 +1544,10 @@ function renderFunds(){
   });
   var pc = document.getElementById('pickClear');
   if(pc) pc.addEventListener('click', function(){ fundPick = []; re('#fundSort'); });
+  var fh = document.getElementById('fundHist');
+  if(fh) fh.addEventListener('change', function(){ fundHistF = this.value; re('#fundHist'); });
+  fundSeriesCache = ser;
+  drawFundHistory();
 }
 
 // ---------- Controls ----------
@@ -1381,7 +1622,7 @@ document.getElementById('cutReset').addEventListener('click', function(){ setCut
 var resizeTimer;
 window.addEventListener('resize', function(){
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(function(){ if(histId) drawHistory(); }, 150);
+  resizeTimer = setTimeout(function(){ if(histId) drawHistory(); drawFrontier(); drawFundHistory(); }, 150);
 });
 render();
 

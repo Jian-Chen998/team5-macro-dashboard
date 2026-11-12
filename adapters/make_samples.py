@@ -7,6 +7,8 @@ Every row is marked synthetic, so the dashboard tags it and never treats it as a
     python adapters/make_samples.py
 """
 import csv
+import math
+import random
 import tempfile
 from pathlib import Path
 
@@ -34,7 +36,21 @@ def team2_sample():
               "data_status": "hypothetical", "changes": [{"field": "upper_bounds", "asset_id": "SAMPLE_equity", "new": 0.05}]}
     return {"schema_version": "dashboard-result/1", "status": "partial_failure",
             "source": {"data_status": "synthetic", "release_id": "made_up_sample"},
-            "suite": {"asset_ids": ASSETS, "reference": reference, "baseline_solution": baseline, "scenarios": [lower, failed]}}
+            "suite": {"asset_ids": ASSETS, "reference": reference, "baseline_solution": baseline, "scenarios": [lower, failed]},
+            "frontier": frontier_sample()}
+
+
+def frontier_sample():
+    """A made-up minimum-variance curve that passes through the sample's suggested portfolio
+    (6.0% return, 9.0% volatility). Point 7 fails, so the drawn line must break there."""
+    def point(ret):
+        vol = math.sqrt(0.085 ** 2 + 13.67 * (ret - 0.052) ** 2)
+        return {"status": "success", "expected_return": round(ret, 6), "volatility": round(vol, 6), "target_return": ret}
+    targets = [0.052 + i * (0.075 - 0.052) / 11 for i in range(12)]
+    points = [point(r) for r in targets]
+    points[6] = {"status": "solver_error", "expected_return": None, "volatility": None, "target_return": targets[6]}
+    return {"status": "partial_failure", "gmv": point(0.052), "maximum": point(0.075), "points": points,
+            "degenerate": False, "reason": None}
 
 
 def write_table(path, rows):
@@ -54,10 +70,11 @@ def coef(fund, model, window, term, estimate, t):
     return {"entity_id": fund, "model": model, "window_id": window, "term": term, "estimate": estimate, "t_stat": t}
 
 
-def perf(fund, window, ret, vol, sharpe, status="ok", bench="", active="", te="", ir="", n_rel=""):
+def perf(fund, window, ret, vol, sharpe, status="ok", bench="", active="", te="", ir="", n_rel="", se=0.3):
     """Contract 1.5 adds the columns against the benchmark proxy; blank when there is none."""
     return {"entity_id": fund, "window_id": window, "status": status, "end_period": "2026-06", "ann_return": ret,
-            "ann_vol": vol, "sharpe": sharpe, "data_status": "synthetic", "release_id": "made_up_sample",
+            "ann_vol": vol, "sharpe": sharpe, "sharpe_ci_low": round(sharpe - 1.96 * se, 4),
+            "sharpe_ci_high": round(sharpe + 1.96 * se, 4), "data_status": "synthetic", "release_id": "made_up_sample",
             "benchmark_id": bench, "active_return": active, "tracking_error": te, "information_ratio": ir,
             "n_obs_relative": n_rel}
 
@@ -102,6 +119,21 @@ def team3_sample(folder):
     write_table(folder / "fit_stats.csv", fits)
     write_table(folder / "coefficients.csv", coefs)
     write_table(folder / "performance.csv", perfs)
+    write_table(folder / "series.csv", series_sample())
+
+
+def series_sample():
+    """Made-up monthly excess returns and fitted values for the full window, Jul 2016..Jun 2026."""
+    rng, rows = random.Random(5), []
+    for fund, model, beta, noise in (("SAMPLE_FUND_A", "Carhart4", 0.98, 0.006), ("SAMPLE_BOND_C", "EquityBeta", 0.10, 0.009)):
+        for i in range(120):
+            y, m = 2016 + (i + 6) // 12, (i + 6) % 12 + 1
+            market = rng.gauss(0.006, 0.04)
+            fitted = beta * market
+            rows.append({"entity_id": fund, "model": model, "window_id": "full", "period": f"{y}-{m:02d}",
+                         "excess_return": round(fitted + rng.gauss(0.0005, noise), 6), "fitted": round(fitted, 6),
+                         "residual": "", "benchmark_id": ""})
+    return rows
 
 
 def main():

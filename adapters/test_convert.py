@@ -37,6 +37,18 @@ class Team2(unittest.TestCase):
         self.assertEqual(self.by[("alloc/portfolio", "scenario_1.volatility")][6], "hypothetical")
         self.assertEqual({r[7] for r in self.rows}, {"FALSE"})
 
+    def test_frontier_points_pass_through_and_failed_points_have_no_numbers(self):
+        self.assertEqual(self.by[("alloc/frontier", "gmv.volatility")][3], 0.085)
+        self.assertEqual(self.by[("alloc/frontier", "p01.status")][3], "success")
+        self.assertEqual(self.by[("alloc/frontier", "p07.status")][3], "solver_error")
+        self.assertNotIn(("alloc/frontier", "p07.volatility"), self.by)
+        self.assertEqual(self.by[("alloc/frontier", "scan.status")][3], "partial_failure")
+
+    def test_result_without_frontier_still_converts(self):
+        sample = team2_sample()
+        sample["frontier"] = None
+        self.assertFalse([r for r in convert_team2(sample) if r[1] == "alloc/frontier"])
+
     def test_rejects_other_schema(self):
         with self.assertRaises(ConvertError):
             convert_team2({"schema_version": "allocation-scenarios/1", "status": "success"})
@@ -103,6 +115,21 @@ class Team3(unittest.TestCase):
         by = lookup(convert_team3(self.tmp.name, ("full", "t36_now")))
         self.assertIn(("fund/SAMPLE_FUND_A", "full.perf.sharpe"), by)
         self.assertFalse([k for k in by if "active_return" in k[1] or "benchmark_id" in k[1]])
+
+    def test_sharpe_interval_passes_through(self):
+        row = self.by[("fund/SAMPLE_FUND_A", "full.perf.sharpe_ci_low")]
+        self.assertEqual((row[3], row[4]), ("-0.108", "ratio"))
+
+    def test_series_rows_are_monthly_and_follow_the_shown_model(self):
+        rows = [r for r in self.rows if r[1] == "fund/SAMPLE_FUND_A" and r[2] == "full.series.fitted"]
+        self.assertEqual(len(rows), 120)
+        self.assertEqual((rows[0][0], rows[0][4]), ("2016-07", "decimal_monthly"))
+        self.assertFalse([r for r in self.rows if ".series." in r[2] and r[2].startswith("t36_now")])
+
+    def test_default_windows_skip_those_not_in_the_run(self):
+        by = lookup(convert_team3(self.tmp.name))
+        self.assertIn(("fund/SAMPLE_FUND_A", "t36_now.perf.sharpe"), by)
+        self.assertFalse([k for k in by if k[1].startswith("common.")])
 
     def test_bond_correlation_follows_contract(self):
         self.assertAlmostEqual(self.by[("fund/SAMPLE_BOND_C", "full.EquityBeta.correlation")][3], 0.3)

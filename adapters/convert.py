@@ -7,7 +7,9 @@
 Team 2 input follows docs/team5_interface.md (dashboard-result/1).
 Team 3 input follows docs/OUTPUT_CONTRACT.md (version 1.3 or later). The benchmark
 comparison (the Benchmark model, and benchmark_id, active_return, tracking_error,
-information_ratio and n_obs_relative in performance.csv) is read when present, from 1.5 on.
+information_ratio and n_obs_relative in performance.csv) is read when present, from 1.5 on,
+as are the Sharpe ratio's interval (sharpe_ci_low, sharpe_ci_high) and series.csv.
+Team 2's efficient frontier (the `frontier` block) is read when the result has one.
 
 No model logic lives here. Values pass through unchanged, except Team 3's correlation
 for bond funds, which the contract defines as sign(beta) * sqrt(r2).
@@ -26,7 +28,10 @@ BENCH_MODEL = "Benchmark"
 # performance.csv columns against the benchmark proxy (contract 1.5, section 10), with the dashboard unit
 RELATIVE = (("benchmark_id", "text"), ("active_return", "decimal"), ("tracking_error", "decimal"),
             ("information_ratio", "ratio"), ("n_obs_relative", "count"))
-DEFAULT_WINDOWS = ("full", "t36_now", "t36_1y")
+# Used when --windows is not given; windows missing from the run are skipped. "common" is
+# Team 3's common estimation window (2017-06..2026-06), the same months for every fund.
+DEFAULT_WINDOWS = ("full", "common", "t36_now", "t36_1y")
+SHARPE_CI = (("sharpe_ci_low", "ratio"), ("sharpe_ci_high", "ratio"))
 
 
 class ConvertError(Exception):
@@ -109,6 +114,32 @@ def convert_team2(result, validated=False):
                 raise ConvertError(f"Team 2: {rec}.{name} does not match asset_ids")
             for asset, value in zip(asset_ids, vector):
                 add(f"alloc/{asset}", name, value, unit)
+    rows += _frontier_rows(result.get("frontier"), release, source_status, validated)
+    return rows
+
+
+def _frontier_rows(frontier, release, status, validated):
+    """Team 2's frontier scan under the baseline assumptions. Failed points keep their status
+    and have no numbers, so the drawn line breaks there (team5_interface.md)."""
+    if not isinstance(frontier, dict):
+        return []
+    rows = []
+
+    def add(metric, value, unit):
+        if value is not None:
+            rows.append(["", "alloc/frontier", metric, value, unit, _text(release), status, _flag(validated)])
+
+    add("scan.status", frontier.get("status"), "text")
+    gmv = frontier.get("gmv") or {}
+    if gmv.get("status") == "success":
+        add("gmv.expected_return", gmv.get("expected_return"), "decimal")
+        add("gmv.volatility", gmv.get("volatility"), "decimal")
+    for i, point in enumerate(frontier.get("points") or [], 1):
+        key = f"p{i:02d}"
+        add(f"{key}.status", point.get("status"), "text")
+        if point.get("status") == "success":
+            add(f"{key}.expected_return", point.get("expected_return"), "decimal")
+            add(f"{key}.volatility", point.get("volatility"), "decimal")
     return rows
 
 
@@ -131,8 +162,9 @@ def _correlation(beta, r2):
     return math.copysign(math.sqrt(r), b)
 
 
-def convert_team3(run_dir, windows=DEFAULT_WINDOWS, model="Carhart4", validated=False):
-    """Team 3 run folder -> rows, one window at a time (contract: always filter on window_id)."""
+def convert_team3(run_dir, windows=None, model="Carhart4", validated=False):
+    """Team 3 run folder -> rows, one window at a time (contract: always filter on window_id).
+    windows=None takes DEFAULT_WINDOWS that the run has; named windows must all be present."""
     if model not in EQUITY_MODELS:
         raise ConvertError(f"Team 3: model must be one of {EQUITY_MODELS}")
     run_dir = Path(run_dir)
@@ -145,6 +177,10 @@ def convert_team3(run_dir, windows=DEFAULT_WINDOWS, model="Carhart4", validated=
     _require(perf, ("entity_id", "window_id", "status", "end_period", "ann_return", "ann_vol", "sharpe",
                     "data_status", "release_id"), "performance.csv")
     present = {r["window_id"] for r in fit}
+    if windows is None:
+        windows = tuple(w for w in DEFAULT_WINDOWS if w in present)
+        if not windows:
+            raise ConvertError(f"Team 3: none of the default windows {DEFAULT_WINDOWS} is in this run")
     absent = [w for w in windows if w not in present]
     if absent:
         raise ConvertError(f"Team 3: window {absent} is not in this run (found {sorted(present)})")
@@ -156,7 +192,7 @@ def convert_team3(run_dir, windows=DEFAULT_WINDOWS, model="Carhart4", validated=
             raise ConvertError(f"Team 3: duplicate coefficient {key}")
         estimates[key] = r
 
-    rows, seen = [], set()
+    rows, seen, fitted_ok = [], set(), {}
     for r in fit:
         win, name = r["window_id"], r["model"]
         if win not in windows or name not in (model, BOND_MODEL, BENCH_MODEL) or r["status"] == "not_applicable":
@@ -181,6 +217,8 @@ def convert_team3(run_dir, windows=DEFAULT_WINDOWS, model="Carhart4", validated=
         add("benchmark_id", r.get("benchmark_id", ""), "text")
         if r["status"] != "ok":
             continue    # no estimates exist; report as no result, not as a weak result
+        if name != BENCH_MODEL:
+            fitted_ok[key] = (status, r["release_id"])
         add("r2", r["r2"], "fraction")
         terms = [t for (e, m, w, t) in estimates if (e, m, w) == key]
         for term in terms:
@@ -204,10 +242,34 @@ def convert_team3(run_dir, windows=DEFAULT_WINDOWS, model="Carhart4", validated=
         # Relative columns are optional (contract 1.5+); blank stays blank, as Team 3 leaves them
         # blank without a proxy or when the proxy's history is shorter than min_obs.
         for metric, unit in (("status", "text"), ("ann_return", "decimal"), ("ann_vol", "decimal"), ("sharpe", "ratio"),
-                             *RELATIVE):
+                             *SHARPE_CI, *RELATIVE):
             if r.get(metric, "") != "":
                 rows.append([r["end_period"], f"fund/{r['entity_id']}", f"{r['window_id']}.perf.{metric}", r[metric],
                              unit, r["release_id"], status, _flag(validated)])
+    rows += _series_rows(run_dir / "series.csv", windows, fitted_ok, validated)
+    return rows
+
+
+def _series_rows(path, windows, fitted_ok, validated):
+    """series.csv (contract section 9): monthly excess return and the model's fitted value, for the
+    fits shown above. Only windows configured with series: true have rows (full and common)."""
+    if not path.is_file():
+        return []
+    series = _read_csv(path)
+    _require(series, ("entity_id", "model", "window_id", "period", "excess_return", "fitted"), "series.csv")
+    rows, seen = [], set()
+    for r in series:
+        key = (r["entity_id"], r["model"], r["window_id"])
+        if r["window_id"] not in windows or key not in fitted_ok:
+            continue
+        if (*key, r["period"]) in seen:
+            raise ConvertError(f"Team 3: duplicate series row {(*key, r['period'])}")
+        seen.add((*key, r["period"]))
+        status, release = fitted_ok[key]
+        for metric in ("excess_return", "fitted"):
+            if r[metric] != "":
+                rows.append([r["period"], f"fund/{r['entity_id']}", f"{r['window_id']}.series.{metric}", r[metric],
+                             "decimal_monthly", release, status, _flag(validated)])
     return rows
 
 
@@ -227,7 +289,8 @@ def main(argv=None):
     t2.add_argument("source")
     t3 = sub.add_parser("team3", help="Team 3 run folder")
     t3.add_argument("source")
-    t3.add_argument("--windows", default=",".join(DEFAULT_WINDOWS), help="comma-separated window_id values")
+    t3.add_argument("--windows", default=None,
+                    help="comma-separated window_id values (default: those of %s in the run)" % ",".join(DEFAULT_WINDOWS))
     t3.add_argument("--model", default="Carhart4", choices=EQUITY_MODELS, help="model shown for equity funds")
     for p in (t2, t3):
         p.add_argument("-o", "--output", required=True)
@@ -239,7 +302,7 @@ def main(argv=None):
             result = json.loads(Path(args.source).read_text(encoding="utf-8"))
             rows = convert_team2(result, args.team4_validated)
         else:
-            windows = tuple(w for w in args.windows.split(",") if w)
+            windows = tuple(w for w in args.windows.split(",") if w) if args.windows else None
             rows = convert_team3(args.source, windows, args.model, args.team4_validated)
     except (ConvertError, OSError, json.JSONDecodeError) as exc:
         parser.exit(1, f"error: {exc}\n")

@@ -1,5 +1,7 @@
 # Team 5 dashboard shell
 
+**Live page:** https://jian-chen998.github.io/team5-macro-dashboard/
+
 Open `dashboard.html` in any browser. No install needed.
 
 The page is a **layout and wiring shell**. It does not compute any engine. Each engine owner calculates their own numbers and gives us a CSV. Until then the row shows "Awaiting data". The only row filled in is the VIX example from the Sep 22, 2026 strategy memo.
@@ -60,7 +62,11 @@ python adapters/convert.py team2 path/to/dashboard_result.json -o inputs/allocat
 python adapters/convert.py team3 path/to/run_folder -o inputs/funds.csv
 ```
 
-Then load the CSV with **Load data files**. For Team 3, `--windows` picks the windows (default `full,t36_now,t36_1y`) and `--model` picks the equity model (default `Carhart4`).
+Then load the CSV with **Load data files**. For Team 3, `--windows` picks the windows (default: whichever of `full,common,t36_now,t36_1y` the run has; `common` is Team 3's common window, 2017-06 to 2026-06, the same months for every fund) and `--model` picks the equity model (default `Carhart4`).
+
+- **Efficient frontier:** when Team 2's result has a `frontier` block, the allocation panel draws a **Risk and return** chart: the frontier curve, the lowest-risk mix, and the reference and suggested portfolios. What-if cases use their own assumptions, so they are not drawn on it. Failed frontier points break the curve.
+- **Return over time:** when the run folder has `series.csv`, the fund panel draws each fund's cumulative return above cash next to the part its factor model explains. Team 3 writes monthly series for `full` and `common` only.
+- **Sharpe interval:** `sharpe_ci_low` and `sharpe_ci_high` are shown under each Sharpe ratio as its 95% interval.
 
 - **Restricted data:** results built from Team 1's real release are restricted. `inputs/allocation.csv` and `inputs/funds.csv` are in `.gitignore`, so keep them out of this repo and share them only as your team agrees.
 - **Validated:** rows are marked not validated unless you pass `--team4-validated`, which is only for a file Team 4 has checked.
