@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <title>Cross-Asset Macro Risk Dashboard</title>
 <style>
 /* Color roles. Values come from the data-viz reference palette (validated light and dark).
@@ -21,6 +24,16 @@
   --good:#0ca30c; --warning:#fab219;
   --ref:#a3a19a; --sug:#2a78d6;
   --accent:#0b2545;
+}
+/* Polish layer tokens (light) */
+:root{
+  --page:#f3f5f9; --surface:#ffffff; --raised:#ffffff;
+  --ink:#0f172a; --ink-2:#475569; --muted:#64748b;
+  --grid:#e9edf3; --axis:#cbd2dc; --border:rgba(15,23,42,.08);
+  --mid-band:#f4f6fa;
+  --navy:#0b2545; --red:#e0302a;
+  --shadow:0 1px 2px rgba(15,23,42,.04), 0 10px 30px -14px rgba(15,23,42,.14);
+  --shadow-sm:0 1px 2px rgba(15,23,42,.05);
 }
 @media (prefers-color-scheme: dark){
   :root:where(:not([data-theme="light"])){
@@ -239,13 +252,100 @@ input.pick{width:16px;height:16px;cursor:pointer;accent-color:var(--ink)}
   body{background:#fff} .toolbar,.noprint{display:none!important}
   .card,.tile{break-inside:avoid}
 }
+
+/* ===== Polish layer: institutional finance look (masthead, cards, type) =====
+   Data colors (blue = unusually low, orange = unusually high) are unchanged. */
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){ --mid-band:#232321; --shadow:none; --shadow-sm:none; }
+}
+:root[data-theme="dark"], :root[data-look="terminal"]{ --shadow:none; --shadow-sm:none; }
+
+body{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;font-feature-settings:"cv11","ss01";
+  -webkit-font-smoothing:antialiased;letter-spacing:-.003em}
+td.num,th.num,.tile .v,.track .val,.tooltip .tv,.wbar,.mcell{font-variant-numeric:tabular-nums}
+
+/* Masthead: full-width navy band with a faint grid, cards overlap its lower edge */
+.mast{position:relative;overflow:hidden;color:#fff;
+  background:radial-gradient(900px 380px at 85% -10%, rgba(80,140,230,.35), transparent 60%),
+             linear-gradient(120deg,#081c36 0%,#0d2b52 55%,#13406f 100%)}
+.mast::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px);
+  background-size:48px 48px;
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.35) 70%,transparent 100%);
+          mask-image:linear-gradient(180deg,#000 0%,rgba(0,0,0,.35) 70%,transparent 100%)}
+.mast-in{position:relative;max-width:1180px;margin:0 auto;padding:30px 16px 96px}
+.wrap{position:relative;margin-top:-68px;padding-top:0}
+.top{background:none;box-shadow:none;border-radius:0;padding:0;margin:0;align-items:center}
+.top .kicker{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.72);margin:0 0 10px}
+.top .kicker::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--red);box-shadow:0 0 0 3px rgba(224,48,42,.25)}
+.top h1{color:#fff;font-size:30px;font-weight:700;letter-spacing:-.022em}
+.top .accent{display:block;width:52px;height:3px;border-radius:2px;background:var(--red);margin:14px 0 12px}
+.top .sub{color:rgba(255,255,255,.78);margin:0;font-size:13px}
+.top .chip{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:rgba(255,255,255,.92);backdrop-filter:blur(4px)}
+.top .logos{border:0;border-radius:14px;padding:12px 20px;box-shadow:0 12px 30px rgba(0,0,0,.28)}
+
+/* Cards and tiles */
+.card{border-radius:16px;border:1px solid var(--border);box-shadow:var(--shadow);padding:22px 24px}
+.card h2{font-size:17px;font-weight:650;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+.wrap{counter-reset:sec}
+.card h2::before{counter-increment:sec;content:counter(sec,decimal-leading-zero);font-size:11px;font-weight:600;letter-spacing:.04em;
+  color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:2px 6px;font-variant-numeric:tabular-nums}
+.takeaway{position:relative;overflow:hidden}
+.takeaway::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--red),#f07a3a)}
+.takeaway .eyebrow{color:var(--red)}
+.takeaway p.main{font-size:18px;font-weight:500;letter-spacing:-.01em}
+.tiles{gap:14px}
+.tile{border-radius:16px;border:1px solid var(--border);box-shadow:var(--shadow);padding:16px 18px;transition:transform .2s ease, box-shadow .2s ease}
+.tile:hover{transform:translateY(-2px)}
+.tile .v{font-size:32px;font-weight:700;letter-spacing:-.03em}
+.eyebrow{letter-spacing:.1em}
+
+/* Controls */
+.toolbar button,.toolbar .btn{border-radius:999px;padding:7px 14px;font-weight:500;background:var(--surface);box-shadow:var(--shadow-sm)}
+.toolbar button:hover,.toolbar .btn:hover{background:var(--mid-band)}
+button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+select{border-radius:8px;padding:5px 9px;box-shadow:var(--shadow-sm)}
+.seg{box-shadow:var(--shadow-sm)}
+.seg button.on{background:var(--navy);color:#fff}
+
+/* Tables */
+th{background:var(--mid-band);border-bottom:1px solid var(--border);color:var(--muted);font-weight:600}
+th:first-child{border-top-left-radius:8px} th:last-child{border-top-right-radius:8px}
+tbody tr:not(.grouprow):hover td{background:var(--mid-band)}
+td{border-bottom:1px solid var(--grid)}
+.crow{border-radius:10px;transition:background .15s ease}
+
+/* Dark and terminal: masthead goes deep, cards drop their shadows */
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])) button.on{background:#f0efec;color:#0d0d0d;border-color:#f0efec}
+}
+:root[data-look="terminal"] .mast{background:linear-gradient(120deg,#05070a,#0b1420)}
+:root[data-look="terminal"] .mast::before{background-image:linear-gradient(rgba(125,211,252,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(125,211,252,.06) 1px,transparent 1px)}
+:root[data-look="terminal"] .top h1{color:var(--chrome)}
+:root[data-look="terminal"] button.on,:root[data-look="terminal"] .seg button.on{background:var(--chrome);color:#05070a;border-color:var(--chrome)}
+:root[data-look="terminal"] .card h2::before{color:var(--chrome);border-color:rgba(125,211,252,.3)}
+:root[data-look="terminal"] .ticker{margin-top:0}
+
+@media (max-width:760px){
+  .mast-in{padding:22px 16px 84px}
+  .top h1{font-size:23px}
+  .wrap{margin-top:-60px}
+  .card{padding:18px 16px}
+}
+@media print{
+  .mast{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .wrap{margin-top:12px}
+  .card,.tile{box-shadow:none}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="mast"><div class="mast-in">
   <header class="top">
     <div>
+      <p class="kicker">Team 5 &middot; First Bank practicum</p>
       <h1>Cross-Asset Macro Risk Dashboard</h1>
+      <span class="accent" aria-hidden="true"></span>
       <p class="sub" id="sub"></p>
     </div>
     <div class="topright">
@@ -260,6 +360,8 @@ input.pick{width:16px;height:16px;cursor:pointer;accent-color:var(--ink)}
       </div>
     </div>
   </header>
+</div></div>
+<div class="wrap">
   <div class="ticker" id="ticker" aria-label="Signal ticker"></div>
   <div class="banner" id="demoBanner"><b>Layout preview.</b> Rows marked TEST use made-up numbers, not real market values.</div>
 
