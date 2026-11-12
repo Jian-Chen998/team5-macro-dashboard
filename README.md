@@ -65,6 +65,7 @@ Then load the CSV with **Load data files**. For Team 3, `--windows` picks the wi
 - **Restricted data:** results built from Team 1's real release are restricted. `inputs/allocation.csv` and `inputs/funds.csv` are in `.gitignore`, so keep them out of this repo and share them only as your team agrees.
 - **Validated:** rows are marked not validated unless you pass `--team4-validated`, which is only for a file Team 4 has checked.
 - **Team 3 rules kept:** bond fund alpha is never shown, alpha stays monthly, and "insufficient history" is shown as no result.
+- **Benchmark comparison:** with Team 3's contract 1.5 or later (current: 1.6, on Team 1's `data_v1.1`), the converter also reads each fund's benchmark proxy, its `Benchmark` model and the columns `active_return`, `tracking_error`, `information_ratio` and `n_obs_relative` in `performance.csv`. The fund panel then shows an **Against its benchmark** table. Blank values stay blank: a fund without a proxy shows "No single benchmark fund", and a proxy with too little history for the period shows "Benchmark history too short". Older run folders without these columns still convert; the table is simply not shown.
 - **Samples:** `inputs/samples/` holds made-up files for testing the layout. They did not come from either team's code and are marked synthetic. `python adapters/make_samples.py` rebuilds them, and `python adapters/test_convert.py` runs the tests.
 
 ## Using the page

@@ -69,8 +69,40 @@ class Team3(unittest.TestCase):
         self.assertEqual(self.by[("fund/SAMPLE_FUND_A", "t36_now.Carhart4.mkt_rf.estimate")][3], "1.02")
 
     def test_bond_alpha_is_never_reported(self):
-        self.assertFalse([k for k in self.by if k[0] == "fund/SAMPLE_BOND_C" and "alpha" in k[1]])
+        self.assertFalse([k for k in self.by if k[0] == "fund/SAMPLE_BOND_C" and ".EquityBeta.alpha" in k[1]])
         self.assertIn(("fund/SAMPLE_BOND_C", "full.EquityBeta.mkt_rf.estimate"), self.by)
+
+    def test_benchmark_relative_columns_pass_through(self):
+        self.assertEqual(self.by[("fund/SAMPLE_FUND_A", "full.perf.benchmark_id")][3], "SAMPLE_PROXY_EQ")
+        row = self.by[("fund/SAMPLE_FUND_A", "full.perf.active_return")]
+        self.assertEqual((row[3], row[4]), ("-0.004", "decimal"))
+        self.assertEqual(self.by[("fund/SAMPLE_FUND_A", "t36_now.perf.information_ratio")][3], "0.29")
+        self.assertEqual(self.by[("fund/SAMPLE_FUND_A", "full.perf.n_obs_relative")][4], "count")
+
+    def test_benchmark_model_is_kept_and_its_alpha_can_be_reported(self):
+        self.assertEqual(self.by[("fund/SAMPLE_FUND_A", "full.Benchmark.benchmark.estimate")][3], "0.97")
+        self.assertIn(("fund/SAMPLE_FUND_A", "full.Benchmark.alpha.estimate"), self.by)
+        self.assertEqual(self.by[("fund/SAMPLE_BOND_C", "t36_now.Benchmark.benchmark_id")][3], "SAMPLE_PROXY_BOND")
+
+    def test_fund_without_proxy_has_no_benchmark_rows(self):
+        self.assertFalse([k for k in self.by if k[0] == "fund/SAMPLE_FUND_B"
+                          and ("Benchmark" in k[1] or "benchmark" in k[1] or "active" in k[1])])
+
+    def test_short_proxy_history_leaves_relative_blank(self):
+        self.assertEqual(self.by[("fund/SAMPLE_BOND_C", "full.perf.n_obs_relative")][3], "48")
+        self.assertNotIn(("fund/SAMPLE_BOND_C", "full.perf.active_return"), self.by)
+        self.assertEqual(self.by[("fund/SAMPLE_BOND_C", "full.Benchmark.status")][3], "insufficient_history")
+        self.assertNotIn(("fund/SAMPLE_BOND_C", "full.Benchmark.benchmark.estimate"), self.by)
+
+    def test_contract_before_benchmarks_still_converts(self):
+        folder = Path(self.tmp.name)
+        for name, drop in (("performance.csv", 5), ("fit_stats.csv", 1)):
+            lines = (folder / name).read_text(encoding="utf-8").splitlines()
+            cut = [",".join(line.split(",")[:-drop]) for line in lines]
+            (folder / name).write_text("\n".join(cut) + "\n", encoding="utf-8")
+        by = lookup(convert_team3(self.tmp.name, ("full", "t36_now")))
+        self.assertIn(("fund/SAMPLE_FUND_A", "full.perf.sharpe"), by)
+        self.assertFalse([k for k in by if "active_return" in k[1] or "benchmark_id" in k[1]])
 
     def test_bond_correlation_follows_contract(self):
         self.assertAlmostEqual(self.by[("fund/SAMPLE_BOND_C", "full.EquityBeta.correlation")][3], 0.3)

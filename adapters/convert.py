@@ -5,7 +5,9 @@
     python adapters/convert.py team3 <run_dir> -o inputs/funds.csv
 
 Team 2 input follows docs/team5_interface.md (dashboard-result/1).
-Team 3 input follows docs/OUTPUT_CONTRACT.md (version 1.3 or later).
+Team 3 input follows docs/OUTPUT_CONTRACT.md (version 1.3 or later). The benchmark
+comparison (the Benchmark model, and benchmark_id, active_return, tracking_error,
+information_ratio and n_obs_relative in performance.csv) is read when present, from 1.5 on.
 
 No model logic lives here. Values pass through unchanged, except Team 3's correlation
 for bond funds, which the contract defines as sign(beta) * sqrt(r2).
@@ -20,6 +22,10 @@ HEADER = ["date", "entity", "metric", "value", "unit", "release_id", "data_statu
 ALLOWED_STATUS = {"real", "synthetic", "placeholder", "mixed", "hypothetical"}
 EQUITY_MODELS = ("CAPM", "FF3", "Carhart4")
 BOND_MODEL = "EquityBeta"
+BENCH_MODEL = "Benchmark"
+# performance.csv columns against the benchmark proxy (contract 1.5, section 10), with the dashboard unit
+RELATIVE = (("benchmark_id", "text"), ("active_return", "decimal"), ("tracking_error", "decimal"),
+            ("information_ratio", "ratio"), ("n_obs_relative", "count"))
 DEFAULT_WINDOWS = ("full", "t36_now", "t36_1y")
 
 
@@ -153,7 +159,7 @@ def convert_team3(run_dir, windows=DEFAULT_WINDOWS, model="Carhart4", validated=
     rows, seen = [], set()
     for r in fit:
         win, name = r["window_id"], r["model"]
-        if win not in windows or name not in (model, BOND_MODEL) or r["status"] == "not_applicable":
+        if win not in windows or name not in (model, BOND_MODEL, BENCH_MODEL) or r["status"] == "not_applicable":
             continue
         key = (r["entity_id"], name, win)
         if key in seen:
@@ -172,6 +178,7 @@ def convert_team3(run_dir, windows=DEFAULT_WINDOWS, model="Carhart4", validated=
         add("status_reason", r["status_reason"], "text")
         add("nobs", r["nobs"], "count")
         add("proxy_obs", r["proxy_obs"], "count")
+        add("benchmark_id", r.get("benchmark_id", ""), "text")
         if r["status"] != "ok":
             continue    # no estimates exist; report as no result, not as a weak result
         add("r2", r["r2"], "fraction")
@@ -194,8 +201,11 @@ def convert_team3(run_dir, windows=DEFAULT_WINDOWS, model="Carhart4", validated=
             raise ConvertError(f"Team 3: duplicate performance row {key}")
         seen_perf.add(key)
         status = _status(r["data_status"], f"Team 3 performance {key}")
-        for metric, unit in (("status", "text"), ("ann_return", "decimal"), ("ann_vol", "decimal"), ("sharpe", "ratio")):
-            if r[metric] != "":
+        # Relative columns are optional (contract 1.5+); blank stays blank, as Team 3 leaves them
+        # blank without a proxy or when the proxy's history is shorter than min_obs.
+        for metric, unit in (("status", "text"), ("ann_return", "decimal"), ("ann_vol", "decimal"), ("sharpe", "ratio"),
+                             *RELATIVE):
+            if r.get(metric, "") != "":
                 rows.append([r["end_period"], f"fund/{r['entity_id']}", f"{r['window_id']}.perf.{metric}", r[metric],
                              unit, r["release_id"], status, _flag(validated)])
     return rows

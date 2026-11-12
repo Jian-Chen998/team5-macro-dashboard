@@ -44,19 +44,22 @@ def write_table(path, rows):
         writer.writerows(rows)
 
 
-def fit(fund, model, window, status, nobs, r2, reason=""):
+def fit(fund, model, window, status, nobs, r2, reason="", bench=""):
     return {"entity_id": fund, "model": model, "window_id": window, "status": status, "status_reason": reason,
             "r2": r2, "nobs": nobs, "end_period": "2026-06" if status == "ok" else "", "data_status": "synthetic",
-            "proxy_obs": 0, "release_id": "made_up_sample"}
+            "proxy_obs": 0, "release_id": "made_up_sample", "benchmark_id": bench}
 
 
 def coef(fund, model, window, term, estimate, t):
     return {"entity_id": fund, "model": model, "window_id": window, "term": term, "estimate": estimate, "t_stat": t}
 
 
-def perf(fund, window, ret, vol, sharpe, status="ok"):
+def perf(fund, window, ret, vol, sharpe, status="ok", bench="", active="", te="", ir="", n_rel=""):
+    """Contract 1.5 adds the columns against the benchmark proxy; blank when there is none."""
     return {"entity_id": fund, "window_id": window, "status": status, "end_period": "2026-06", "ann_return": ret,
-            "ann_vol": vol, "sharpe": sharpe, "data_status": "synthetic", "release_id": "made_up_sample"}
+            "ann_vol": vol, "sharpe": sharpe, "data_status": "synthetic", "release_id": "made_up_sample",
+            "benchmark_id": bench, "active_return": active, "tracking_error": te, "information_ratio": ir,
+            "n_obs_relative": n_rel}
 
 
 def team3_sample(folder):
@@ -69,13 +72,32 @@ def team3_sample(folder):
                   coef("SAMPLE_FUND_A", "Carhart4", window, "smb", -0.08, -1.2),
                   coef("SAMPLE_FUND_A", "Carhart4", window, "hml", 0.15, 2.1),
                   coef("SAMPLE_FUND_A", "Carhart4", window, "mom", -0.03, -0.6)]
-        perfs.append(perf("SAMPLE_FUND_A", window, 0.095, 0.16, 0.48))
+        months = 120 if window == "full" else 36
+        # Fund A has a benchmark proxy with as much history as the fund.
+        perfs.append(perf("SAMPLE_FUND_A", window, 0.095, 0.16, 0.48, bench="SAMPLE_PROXY_EQ",
+                          active=-0.004 if window == "full" else 0.006, te=0.021, ir=-0.19 if window == "full" else 0.29,
+                          n_rel=months))
+        fits.append(fit("SAMPLE_FUND_A", "Benchmark", window, "ok", months, 0.97, bench="SAMPLE_PROXY_EQ"))
+        coefs += [coef("SAMPLE_FUND_A", "Benchmark", window, "alpha", -0.0003, -0.5),
+                  coef("SAMPLE_FUND_A", "Benchmark", window, "benchmark", 0.97, 41.0)]
+        # Fund B has no proxy: Benchmark is not_applicable and the relative columns stay blank.
         fits.append(fit("SAMPLE_FUND_B", "Carhart4", window, "insufficient_history", 22, ""))
+        fits.append(fit("SAMPLE_FUND_B", "Benchmark", window, "not_applicable", "", "", reason="no_benchmark_proxy"))
         perfs.append(perf("SAMPLE_FUND_B", window, 0.07, 0.19, 0.25))
-        fits.append(fit("SAMPLE_BOND_C", "EquityBeta", window, "ok", 120 if window == "full" else 36, 0.09))
+        fits.append(fit("SAMPLE_BOND_C", "EquityBeta", window, "ok", months, 0.09))
         coefs += [coef("SAMPLE_BOND_C", "EquityBeta", window, "alpha", 0.0009, 2.5),
                   coef("SAMPLE_BOND_C", "EquityBeta", window, "mkt_rf", 0.10, 1.9)]
-        perfs.append(perf("SAMPLE_BOND_C", window, 0.031, 0.045, 0.22))
+        # Bond C's proxy starts later: over the full window it has 48 months, below min_obs (60),
+        # so the relative columns stay blank there and Benchmark has too little history.
+        if window == "full":
+            perfs.append(perf("SAMPLE_BOND_C", window, 0.031, 0.045, 0.22, bench="SAMPLE_PROXY_BOND", n_rel=48))
+            fits.append(fit("SAMPLE_BOND_C", "Benchmark", window, "insufficient_history", 48, "", bench="SAMPLE_PROXY_BOND"))
+        else:
+            perfs.append(perf("SAMPLE_BOND_C", window, 0.031, 0.045, 0.22, bench="SAMPLE_PROXY_BOND",
+                              active=0.002, te=0.008, ir=0.25, n_rel=36))
+            fits.append(fit("SAMPLE_BOND_C", "Benchmark", window, "ok", 36, 0.88, bench="SAMPLE_PROXY_BOND"))
+            coefs += [coef("SAMPLE_BOND_C", "Benchmark", window, "alpha", 0.0001, 0.4),
+                      coef("SAMPLE_BOND_C", "Benchmark", window, "benchmark", 0.92, 15.2)]
         fits.append(fit("SAMPLE_BOND_C", "Carhart4", window, "not_applicable", "", ""))
     write_table(folder / "fit_stats.csv", fits)
     write_table(folder / "coefficients.csv", coefs)

@@ -738,12 +738,39 @@ function renderFunds(){
       (corr!==null?'<span class="small">Correlation with the stock market: '+dec(corr)+'</span>':'')+
       (proxy?'<span class="small">Includes '+proxy+' months of stand-in data</span>':'')+'</td></tr>';
   });
+  h += '</tbody></table></div>';
+
+  // Against the benchmark (Team 3 contract 1.5+): shown only when the file carries the comparison.
+  var hasBench = all.some(function(r){ return /\.perf\.benchmark_id$/.test(r.metric); });
+  if(hasBench){
+    h += '<h3 class="eyebrow" style="margin-top:18px">Against its benchmark</h3>'+
+      '<p class="howto">Active return is how much more or less the fund earned than its benchmark fund, per year. Tracking error is how much that gap moves around. The information ratio divides the first by the second: a higher number means a steadier lead.</p>'+
+      '<div class="tablewrap"><table style="min-width:880px"><thead><tr><th>Fund</th><th>Benchmark fund</th><th class="num">Active return (per year)</th>'+
+      '<th class="num">Tracking error</th><th class="num">Information ratio</th><th class="num">Sensitivity to benchmark</th><th class="num detail">Months compared</th><th style="min-width:230px">Notes</th></tr></thead><tbody>';
+    funds.forEach(function(f){
+      var r = data[f], b = function(k){ return r[w+'.perf.'+k]; };
+      var id = b('benchmark_id'), ar = num(b('active_return')), n = num(b('n_obs_relative'));
+      var beta = num(r[w+'.Benchmark.benchmark.estimate']);
+      var note = !b('status') && !id ? 'No result for this period' :
+        (!id ? 'No single benchmark fund' : (ar===null ? 'Benchmark history too short for this period' : ''));
+      var src = id || b('status');
+      h += '<tr><td class="eng">'+esc(f)+'</td><td>'+(id?esc(id.value):'—')+'</td>'+
+        '<td class="num">'+colored(ar, pp(ar))+'</td><td class="num">'+pct(num(b('tracking_error')))+'</td>'+
+        '<td class="num">'+dec(num(b('information_ratio')))+'</td><td class="num">'+dec(beta)+'</td>'+
+        '<td class="num detail">'+(n===null?'—':n)+'</td>'+
+        '<td>'+esc(note)+statusTag(src && src.data_status)+'</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+
   var dates = inWindow.map(function(r){ return r.date; }).filter(Boolean).sort();
-  h += '</tbody></table></div><ul class="notes">'+
+  h += '<ul class="notes">'+
     '<li>Returns are after fund expenses, but before advisory fees and taxes.</li>'+
     '<li>Alpha is per month and not annualized. Team 3 is still reviewing which differences are meaningful.</li>'+
     '<li>For bond funds, only their link to the stock market is shown. Their alpha is not a measure of manager skill.</li>'+
     '<li>"Not enough history" means no result, not a weak result.'+(dates.length?' Data through '+esc(prettyDate(dates[dates.length-1]))+'.':'')+'</li>'+
+    (hasBench ? '<li>Each benchmark fund is an index fund (ETF) that tracks an index close to the fund\'s own benchmark. Its returns are after the ETF\'s fees, so an active return near zero means "about the same as the ETF", not "the same as the index".</li>'+
+      '<li>Some benchmark funds changed their index or strategy over time. Team 3 decides which months are compared, and fewer months than the period can mean the benchmark fund\'s history is shorter.</li>' : '')+
     '<li class="detail">'+metaLine(inWindow)+'.</li></ul>';
   el.innerHTML = h;
   document.getElementById('fundWindow').addEventListener('change', function(){ fundWindow = this.value; renderFunds(); });
