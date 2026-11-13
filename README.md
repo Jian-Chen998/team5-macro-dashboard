@@ -65,6 +65,7 @@ python adapters/convert.py team3 path/to/run_folder -o inputs/funds.csv
 Then load the CSV with **Load data files**. For Team 3, `--windows` picks the windows (default: whichever of `full,common,t36_now,t36_1y` the run has; `common` is Team 3's common window, 2017-06 to 2026-06, the same months for every fund) and `--model` picks the equity model (default `Carhart4`).
 
 - **Efficient frontier:** when Team 2's result has a `frontier` block, the allocation panel draws a **Risk and return** chart: the frontier curve, the lowest-risk mix, and the reference and suggested portfolios. What-if cases use their own assumptions, so they are not drawn on it. Failed frontier points break the curve.
+- **Asset names:** the converter takes each asset's readable name from Team 2's `source.assets[].jpm_label` and writes it as a `name` row (for example "U.S. Large Cap" for `us_large_equity`). Without a label, the page shows the id with spaces.
 - **Return over time:** when the run folder has `series.csv`, the fund panel draws each fund's cumulative return above cash next to the part its factor model explains. Team 3 writes monthly series for `full` and `common` only.
 - **Sharpe interval:** `sharpe_ci_low` and `sharpe_ci_high` are shown under each Sharpe ratio as its 95% interval.
 

@@ -52,10 +52,10 @@ def _text(value):
     return "" if value is None else str(value)
 
 
-def _describe_changes(changes):
+def _describe_changes(changes, names=None):
     parts = []
     for c in changes or []:
-        asset = c.get("asset_id", "")
+        asset = (names or {}).get(c.get("asset_id", ""), c.get("asset_id", ""))
         if c.get("field") == "expected_returns" and c.get("delta") is not None:
             parts.append(f"{asset} expected return {c['delta'] * 100:+.2f} pp")
         elif c.get("field") == "upper_bounds" and c.get("new") is not None:
@@ -80,7 +80,11 @@ def convert_team2(result, validated=False):
     except (KeyError, TypeError) as exc:
         raise ConvertError(f"Team 2: missing field {exc}") from exc
 
-    rows = []
+    # Readable asset names come from Team 2's own source metadata (the label of each asset class).
+    names = {a["asset_id"]: a["jpm_label"] for a in source.get("assets") or []
+             if isinstance(a, dict) and a.get("asset_id") in asset_ids and a.get("jpm_label")}
+    rows = [["", f"alloc/{asset}", "name", label, "text", _text(release), source_status, _flag(validated)]
+            for asset, label in names.items()]
     for record in records:
         rec = record["record_id"]
         role = record.get("role")
@@ -100,7 +104,7 @@ def convert_team2(result, validated=False):
 
         add("alloc/portfolio", "status", record.get("status"), "text")
         if role == "scenario_target":
-            add("alloc/portfolio", "change", _describe_changes(record.get("changes")) or None, "text")
+            add("alloc/portfolio", "change", _describe_changes(record.get("changes"), names) or None, "text")
         metrics = record.get("metrics") or {}
         add("alloc/portfolio", "expected_return", metrics.get("expected_return"), "decimal")
         add("alloc/portfolio", "volatility", metrics.get("volatility"), "decimal")

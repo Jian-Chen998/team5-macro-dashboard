@@ -1269,6 +1269,13 @@ function flatten(byEntity){
 var RESULT_LABEL = {success:'Solved', infeasible:'No solution under these limits', input_error:'Input problem', solver_error:'Solver problem'};
 function recordLabel(id){ return id==='reference' ? 'Reference portfolio' : (id==='baseline_solution' ? 'Suggested portfolio' : 'What-if '+id.replace('scenario_','')); }
 
+// Readable asset name: Team 2's own label when the file has one, else the id with spaces ("us_large_equity" -> "Us large equity").
+function assetName(data, a){
+  var n = data[a] && data[a].name;
+  if(n && n.value) return n.value;
+  var s = String(a).replace(/_/g, ' ');
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 // The allocation panel compares two portfolios picked by the reader: left is drawn gray, right blue.
 var allocL = 'reference', allocR = 'baseline_solution', allocPrev = {};
 function renderAllocation(){
@@ -1319,7 +1326,7 @@ function renderAllocation(){
       allocPrev[k] = to;
       return '<div class="wbar '+cls+'"><span class="b" style="width:'+from+'%" data-w="'+to+'"></span>'+pct(v)+'</div>';
     };
-    h += '<div class="wrow"><div class="eng">'+esc(a)+'<span class="small">Change '+(w0===null||w1===null?'—':colored(w1-w0, pp(w1-w0)))+'</span></div>'+
+    h += '<div class="wrow"><div class="eng">'+esc(assetName(data, a))+'<span class="small">Change '+(w0===null||w1===null?'—':colored(w1-w0, pp(w1-w0)))+'</span></div>'+
          '<div class="wbars">'+bar('ref', w0)+bar('sug', w1)+'</div></div>';
   });
 
@@ -1352,7 +1359,7 @@ function renderAllocation(){
     '<th class="num">Weight</th><th class="num">Share of risk</th><th class="num detail">Contribution to volatility</th></tr></thead><tbody>';
   assets.forEach(function(a){
     var r = data[a];
-    h += '<tr><td class="eng">'+esc(a)+'</td><td class="num">'+pct(num(r[rk+'.weight']))+'</td>'+
+    h += '<tr><td class="eng">'+esc(assetName(data, a))+'</td><td class="num">'+pct(num(r[rk+'.weight']))+'</td>'+
       '<td class="num">'+pct(num(r[rk+'.risk_share']))+'</td>'+
       '<td class="num detail">'+pp(num(r[rk+'.vol_contribution']))+'</td></tr>';
   });

@@ -44,6 +44,21 @@ class Team2(unittest.TestCase):
         self.assertNotIn(("alloc/frontier", "p12.volatility"), self.by)
         self.assertEqual(self.by[("alloc/frontier", "scan.status")][3], "partial_failure")
 
+    def test_asset_names_come_from_team2_labels(self):
+        sample = team2_sample()
+        sample["source"]["assets"] = [{"asset_id": "SAMPLE_equity", "jpm_label": "U.S. Large Cap"},
+                                      {"asset_id": "SAMPLE_bonds", "jpm_label": None},
+                                      {"asset_id": "NOT_IN_SUITE", "jpm_label": "Other"}]
+        rows = convert_team2(sample)
+        by = lookup(rows)
+        self.assertEqual(by[("alloc/SAMPLE_equity", "name")][3:5], ["U.S. Large Cap", "text"])
+        self.assertNotIn(("alloc/SAMPLE_bonds", "name"), by)   # no label: the dashboard falls back to the id
+        self.assertFalse([r for r in rows if r[1] == "alloc/NOT_IN_SUITE"])
+        self.assertEqual(by[("alloc/portfolio", "scenario_1.change")][3], "U.S. Large Cap expected return -1.00 pp")
+
+    def test_without_labels_there_are_no_name_rows(self):
+        self.assertFalse([r for r in self.rows if r[2] == "name"])
+
     def test_result_without_frontier_still_converts(self):
         sample = team2_sample()
         sample["frontier"] = None
