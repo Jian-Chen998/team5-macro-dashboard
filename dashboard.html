@@ -187,6 +187,7 @@ td.meaning{min-width:240px}
 .eng{font-weight:600}
 .small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
 .small.mtd{white-space:nowrap;font-style:italic}
+.small.asof{white-space:nowrap}
 .detail{display:none}
 body.details .detail{display:block}
 body.details th.detail, body.details td.detail{display:table-cell}
@@ -588,6 +589,11 @@ function fmtChg(v, unit){
 }
 var STATUS_LABEL = {real:'Real', synthetic:'Synthetic', placeholder:'Placeholder', mixed:'Mixed', hypothetical:'Hypothetical', unknown:'Status missing'};
 function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+// "2026-11-11" -> "11 Nov": the short date shown under a month-to-date reading.
+function dayMonth(d){
+  var p = String(d||'').split('-');
+  return (p[2] ? (+p[2])+' ' : '') + (MONTHS[+p[1]-1] || '');
+}
 function prettyDate(d){
   var mo = MONTHS, p = String(d||'').split('-');
   if(p.length < 2 || !mo[+p[1]-1]) return String(d||'');
@@ -623,7 +629,10 @@ function render(){
   var dates = real.map(function(s){return s.date;}).filter(Boolean).sort();
   var anyMtd = real.some(function(s){ return s.mtd!==undefined; });
   document.getElementById('sub').textContent =
-    (dates.length ? 'Data as of '+prettyDate(dates[dates.length-1])+(anyMtd ? ' (this month so far, provisional)' : '') : 'No market data loaded yet') + ' · Prepared by Team 5 for First Bank portfolio managers';
+    (dates.length ? 'Data as of '+prettyDate(dates[dates.length-1])+(anyMtd ? ' (month to date)' : '')+
+      // Signals can end in different months (monthly sources lag); each row shows its own date.
+      (dates[0].slice(0,7)!==dates[dates.length-1].slice(0,7) ? '; dates vary by signal' : '')
+      : 'No market data loaded yet') + ' · Prepared by Team 5 for First Bank portfolio managers';
   var checked = real.filter(function(s){ return s.validated; }).length;
   document.getElementById('reviewChip').textContent = !real.length ? 'No numbers to review yet' :
     (checked===real.length ? '✓ All numbers checked by Team 4' :
@@ -827,7 +836,8 @@ function renderTable(st){
         '<span class="small detail">Owner '+s.e.owner+' · '+s.e.source+(s.release?' · Release '+esc(s.release):'')+(s.date?' · Data date '+esc(s.date):'')+'</span>'+
         (s.zs!==undefined ? '<span class="small detail">Usual (non-downside) score: '+zfmt(s.zs)+'</span>' : '')+'</td>'+
         '<td class="num">'+fmtLevel(s.lv, s.unit)+
-          (s.mtd!==undefined ? '<span class="small mtd" title="Average of '+s.mtd+' trading days this month, through '+esc(prettyDate(s.date))+'. Final at month end.">Month to date</span>' : '')+'</td>'+
+          (s.mtd!==undefined ? '<span class="small mtd" title="Average of '+s.mtd+' trading days this month, through '+esc(prettyDate(s.date))+'. Final at month end.">MTD to '+esc(dayMonth(s.date))+'</span>'
+                             : (has && s.date ? '<span class="small asof" title="Data date of this reading">'+esc(prettyDate(s.date))+'</span>' : ''))+'</td>'+
         '<td class="num">'+(has?'<b>'+zfmt(s.z)+'</b>':'—')+'</td>'+
         '<td class="num">'+fmtChg(s.c3, s.unit)+'</td><td class="num">'+fmtChg(s.c1, s.unit)+'</td>'+
         '<td>'+(has?'<span class="reading '+zn+'"><i></i>'+zoneLabel(s.z)+'</span>':'<span class="small">No data yet</span>')+'</td>'+
