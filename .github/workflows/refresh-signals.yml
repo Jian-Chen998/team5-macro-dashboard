@@ -1,0 +1,61 @@
+# Refreshes the eight signal files in inputs/ from public data once a month,
+# then updates both main and gh-pages so the public page shows the new month.
+# Runs on the 20th, after the previous month's CPI is out. It can also be started
+# by hand (Actions tab > Refresh signals > Run workflow), and it runs when the
+# engine code or this file changes.
+name: Refresh signals
+
+on:
+  schedule:
+    - cron: "0 14 20 * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "engines/macro_engines.py"
+      - ".github/workflows/refresh-signals.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-signals
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: python -m pip install -r engines/requirements.txt
+
+      - name: Test
+        run: python engines/test_macro_engines.py
+
+      - name: Download public data
+        run: python engines/macro_engines.py fetch --raw "$RUNNER_TEMP/raw"
+
+      - name: Build the public signal files
+        run: python engines/macro_engines.py build --macro "$RUNNER_TEMP/raw/macro_monthly.csv" --public -o inputs
+
+      - name: Commit and publish if anything changed
+        run: |
+          git add inputs/*.csv
+          if git diff --cached --quiet; then
+            echo "No new data."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898900+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Refresh signals from public data ($(date -u +%Y-%m-%d))"
+          git push origin HEAD:main
+          git push origin HEAD:gh-pages

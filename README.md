@@ -4,7 +4,7 @@
 
 Open `dashboard.html` in any browser. No install needed.
 
-The page itself does not compute any engine. `engines/macro_engines.py` computes all eight signals from public data and writes one CSV per signal; see [engines/README.md](engines/README.md). Until a signal's CSV is loaded, its row shows "Awaiting data". The only built-in row is the VIX example from the Sep 22, 2026 strategy memo.
+The page itself does not compute any engine. `engines/macro_engines.py` computes all eight signals from public data and writes one CSV per signal; see [engines/README.md](engines/README.md). The public page loads them from `inputs/`, and a GitHub Actions job refreshes them on the 20th of each month. Until a signal's CSV is loaded, its row shows "Awaiting data". The only built-in row is the VIX example from the Sep 22, 2026 strategy memo.
 
 ## How to give us your engine's numbers
 

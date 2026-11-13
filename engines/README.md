@@ -52,7 +52,11 @@ Every signal has `level`, `z_score`, `chg_3m` and `chg_1y` for each month, so th
 
 ## Updating the public page
 
-The public page reads `inputs/<entity>.csv` automatically. To refresh it:
+The public page reads `inputs/<entity>.csv` automatically.
+
+**Automatic.** A GitHub Actions job, `.github/workflows/refresh-signals.yml`, refreshes these files on the 20th of each month. By then the previous month's CPI is out. The job runs the tests, downloads the data, builds with `--public`, and pushes to both `main` and `gh-pages`. It also runs when `macro_engines.py` changes. To run it now, open the repository's **Actions** tab, choose **Refresh signals**, then **Run workflow**. If a source changes its format, the job fails, and GitHub emails the repository owner.
+
+**By hand:**
 
 ```bash
 python engines/macro_engines.py fetch --raw <folder outside the repo>
