@@ -2913,3 +2913,8 @@ date,entity,metric,value,unit,release_id,data_status,validated
 2026-10,yield_curve,chg_3m,0.000108009,decimal,public_2026-11-13,real,FALSE
 2026-10,yield_curve,chg_1y,-0.00152835,decimal,public_2026-11-13,real,FALSE
 2026-10,yield_curve,chg_1m,0.0005,decimal,public_2026-11-13,real,FALSE
+2026-11-10,yield_curve,level,0.00325714,decimal,public_2026-11-13,real,FALSE
+2026-11-10,yield_curve,z_score,-0.0187897,sd,public_2026-11-13,real,FALSE
+2026-11-10,yield_curve,chg_3m,-0.00142381,decimal,public_2026-11-13,real,FALSE
+2026-11-10,yield_curve,chg_1y,-0.00218175,decimal,public_2026-11-13,real,FALSE
+2026-11-10,yield_curve,mtd_days,7,days,public_2026-11-13,real,FALSE

@@ -2004,3 +2004,9 @@ date,entity,metric,value,unit,release_id,data_status,validated
 2026-10,volatility,chg_3m,-0.19496,index,public_2026-11-13,real,FALSE
 2026-10,volatility,chg_1y,-1.19061,index,public_2026-11-13,real,FALSE
 2026-10,volatility,z_score_standard,-0.261849,sd,public_2026-11-13,real,FALSE
+2026-11-11,volatility,level,21.16,index,public_2026-11-13,real,FALSE
+2026-11-11,volatility,z_score,0.691007,sd,public_2026-11-13,real,FALSE
+2026-11-11,volatility,chg_3m,5.93048,index,public_2026-11-13,real,FALSE
+2026-11-11,volatility,chg_1y,1.3905,index,public_2026-11-13,real,FALSE
+2026-11-11,volatility,z_score_standard,0.373378,sd,public_2026-11-13,real,FALSE
+2026-11-11,volatility,mtd_days,8,days,public_2026-11-13,real,FALSE

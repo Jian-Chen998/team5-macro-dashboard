@@ -39,6 +39,7 @@ Every signal has `level`, `z_score`, `chg_3m` and `chg_1y` for each month, so th
 - **Decimals.** Rates, spreads and returns are decimals (0.025 means 2.5%). The VIX is an index level. Scores are in standard deviations.
 - **Score.** Each month is scored against the window of months ending with it: `(value − mean) / standard deviation`. A month gets a score only when it has a value itself and at least 80% of its window has data. Missing months are skipped, never filled.
 - **Downside semi-deviation (VIX).** This is the memo's formula: sqrt((1/N) × sum over months below the mean of (X − mean)²), where N is the number of months in the window.
+- **Month to date (provisional).** `fetch` also writes `macro_mtd.csv`, which holds the average of the current month's trading days so far for each daily series. `build` reads it automatically when it sits next to `macro_monthly.csv`; use `--no-mtd` to skip it. Six signals get a provisional reading: breakeven, term premium, ERP (month-to-date 10-year yield with the latest monthly CAPE), VIX, yield curve and credit. The real rate and momentum use monthly data, so they have none. A provisional reading needs at least 5 trading days. Its rows are dated with the last day of data (`YYYY-MM-DD`), scored like a full month against the window ending with this month, and carry an extra `mtd_days` metric that the dashboard uses to label them. When the month ends, the next run replaces them with the full-month reading.
 - **Missing stays missing.** For example, BLS published no CPI for October 2025. So the real rate has no reading for October 2025, and none for October 2026, because its 12-month inflation needs the October 2025 CPI. The latest real rate is therefore September 2026.
 - **Status.** Every row is `real` and `validated = FALSE` until Team 4 checks it. With `--team1-release`, momentum rows carry Team 1's status instead.
 
@@ -54,7 +55,7 @@ Every signal has `level`, `z_score`, `chg_3m` and `chg_1y` for each month, so th
 
 The public page reads `inputs/<entity>.csv` automatically.
 
-**Automatic.** A GitHub Actions job, `.github/workflows/refresh-signals.yml`, refreshes these files on the 20th of each month. By then the previous month's CPI is out. The job runs the tests, downloads the data, builds with `--public`, and pushes to both `main` and `gh-pages`. It also runs when `macro_engines.py` changes. To run it now, open the repository's **Actions** tab, choose **Refresh signals**, then **Run workflow**. If a source changes its format, the job fails, and GitHub emails the repository owner.
+**Automatic.** A GitHub Actions job, `.github/workflows/refresh-signals.yml`, refreshes these files every weekday at 14:00 UTC, when FRED has the previous day's values. The job runs the tests, downloads the data, builds with `--public`, and pushes to both `main` and `gh-pages`. It also runs when `macro_engines.py` changes. To run it now, open the repository's **Actions** tab, choose **Refresh signals**, then **Run workflow**. If a source changes its format, the job fails, and GitHub emails the repository owner.
 
 **By hand:**
 

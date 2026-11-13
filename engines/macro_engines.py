@@ -73,6 +73,8 @@ ENGINES = {
     "credit":       {"unit": "decimal", "window": 120, "downside": False},
 }
 MIN_COVERAGE = 0.8  # share of a Z-score window's months that must have data
+MIN_MTD_DAYS = 5    # trading days needed before a month-to-date reading is shown
+MTD_COLUMNS = ["period", "series_id", "value", "source_id", "n_days", "through"]
 HEADER = ["date", "entity", "metric", "value", "unit", "release_id", "data_status", "validated"]
 
 
@@ -119,6 +121,27 @@ def shiller_link(page_html):
         raise EngineError("could not find the ie_data.xls link on shillerdata.com")
     url = m.group(1)
     return "https:" + url if url.startswith("//") else url
+
+
+DAILY_SERIES = {"DGS10", "DGS2", "DFII10", "VIXCLS", "THREEFYTP10", "BAA10Y", "BAMLH0A0HYM2", "BAMLC0A0CM"}
+
+
+def parse_fred_mtd(text, series_id, current):
+    """Average of the daily values so far in the current, unfinished month, with the number
+    of days and the last date. None when the month has no data yet."""
+    df = pd.read_csv(io.StringIO(text))
+    date_col, val_col = df.columns[0], df.columns[1]
+    df[val_col] = pd.to_numeric(df[val_col], errors="coerce")
+    df = df.dropna(subset=[val_col])
+    d = pd.to_datetime(df[date_col])
+    cur = df[d.dt.to_period("M").astype(str) == current]
+    if cur.empty:
+        return None
+    v = cur[val_col].mean()
+    if series_id in PERCENT_SERIES:
+        v = v / 100.0
+    through = pd.to_datetime(cur[date_col]).max().strftime("%Y-%m-%d")
+    return [current, series_id, v, "fred", len(cur), through]
 
 
 def shiller_period(x):
@@ -187,12 +210,17 @@ def fetch(raw_dir, today=None):
     raw = Path(raw_dir)
     raw.mkdir(parents=True, exist_ok=True)
     today = today or dt.date.today()
-    frames = []
+    current = f"{today.year:04d}-{today.month:02d}"
+    frames, mtd = [], []
     for sid in FRED_SERIES:
         text = _get(FRED_URL.format(sid)).decode("utf-8")
         (raw / f"fred_{sid}.csv").write_text(text, encoding="utf-8")
         frames.append(parse_fred(text, sid))
         print(f"  FRED {sid}: {len(frames[-1])} months")
+        if sid in DAILY_SERIES:
+            row = parse_fred_mtd(text, sid, current)
+            if row:
+                mtd.append(row)
     link = shiller_link(_get(SHILLER_PAGE).decode("utf-8", "replace"))
     xls = raw / "shiller_ie_data.xls"
     xls.write_bytes(_get(link))
@@ -203,13 +231,14 @@ def fetch(raw_dir, today=None):
     frames.append(parse_french(zb))
     print(f"  French market factors: {frames[-1].period.nunique()} months")
     out = pd.concat(frames, ignore_index=True)
-    current = f"{today.year:04d}-{today.month:02d}"
     out = out[out.period < current]  # the current month is not finished
     path = raw / "macro_monthly.csv"
     out.sort_values(["series_id", "period"]).to_csv(path, index=False)
+    pd.DataFrame(mtd, columns=MTD_COLUMNS).to_csv(raw / "macro_mtd.csv", index=False)
     info = {"pulled_on": today.isoformat(), "release_id": f"public_{today.isoformat()}",
             "sources": {"fred": list(FRED_SERIES), "shiller": link, "french": FRENCH_URL},
-            "note": "Monthly averages of daily series; the current month is left out."}
+            "note": "Monthly averages of daily series; the current month is left out of "
+                    "macro_monthly.csv. macro_mtd.csv holds its month-to-date averages."}
     (raw / "pull_info.json").write_text(json.dumps(info, indent=1), encoding="utf-8")
     print(f"wrote {path} ({len(out):,} rows), release id {info['release_id']}")
     return path
@@ -324,8 +353,9 @@ def percentile(s, window):
 NOT_PUBLIC = {"hy_oas", "ig_oas"}
 
 
-def build(macro_path, release_id, team1_release=None, public=False):
+def build(macro_path, release_id, team1_release=None, public=False, mtd_path=None):
     w = load_macro(macro_path)
+    mtd = load_mtd(mtd_path) if mtd_path else None
     market, m_release, m_status = None, release_id, "real"
     if team1_release:
         market, m_release, m_status = team1_market(team1_release)
@@ -365,8 +395,71 @@ def build(macro_path, release_id, team1_release=None, public=False):
                     continue
                 unit = "sd" if metric.startswith("z_score") else (EXTRA_UNITS.get(metric) or cfg["unit"])
                 rows.append([p, ent, metric, f"{float(v):.6g}", unit, rel, status, "FALSE"])
+        if mtd is not None and ent in PROVISIONAL:
+            rows += provisional_rows(ent, cfg, mets["level"], w, mtd, rel)
         files[ent] = rows
     return files
+
+
+# Month-to-date readings, only for signals whose inputs are all daily. ERP pairs the
+# month-to-date 10-year yield with the latest monthly CAPE.
+PROVISIONAL = {
+    "breakeven":    (("DGS10", "DFII10"), lambda v, w: v["DGS10"] - v["DFII10"]),
+    "term_premium": (("THREEFYTP10",),    lambda v, w: v["THREEFYTP10"]),
+    "erp":          (("DGS10",),          lambda v, w: 1.0 / w["SHILLER_CAPE"].dropna().iloc[-1] - v["DGS10"]),
+    "volatility":   (("VIXCLS",),         lambda v, w: v["VIXCLS"]),
+    "yield_curve":  (("DGS10", "DGS2"),   lambda v, w: v["DGS10"] - v["DGS2"]),
+    "credit":       (("BAA10Y",),         lambda v, w: v["BAA10Y"]),
+}
+
+
+def load_mtd(path):
+    df = pd.read_csv(path, dtype={"period": str, "series_id": str, "through": str})
+    if df.empty:
+        return {}
+    if not set(MTD_COLUMNS) <= set(df.columns):
+        raise EngineError(f"{path}: needs columns {MTD_COLUMNS}")
+    if df.period.nunique() != 1:
+        raise EngineError(f"{path}: month-to-date rows must all be for one month")
+    return {r.series_id: r for r in df.itertuples()}
+
+
+def provisional_rows(ent, cfg, level, w, mtd, release):
+    """Rows for this month so far, dated with the last day of data (YYYY-MM-DD).
+
+    The reading is scored like a month: against the window of months ending with this one,
+    with this month's value taken from the month-to-date average. `mtd_days` (trading days in
+    the average) marks the reading as provisional on the dashboard."""
+    inputs, f = PROVISIONAL[ent]
+    if not all(s in mtd for s in inputs):
+        return []
+    days = min(int(mtd[s].n_days) for s in inputs)
+    if days < MIN_MTD_DAYS:
+        return []
+    period = mtd[inputs[0]].period
+    if not level.dropna().empty and period <= level.dropna().index.max():
+        raise EngineError(f"month-to-date period {period} is not after the last full month")
+    through = min(mtd[s].through for s in inputs)
+    if ent == "erp" and ("SHILLER_CAPE" not in w or w["SHILLER_CAPE"].dropna().empty):
+        return []
+    value = f({s: float(mtd[s].value) for s in inputs}, w)
+    s = level.reindex(monthly_index(level.index.min(), period))
+    s.loc[period] = value
+    i = len(s) - 1
+    cols = {"level": value,
+            "z_score": zscore(s, cfg["window"], cfg["downside"]).iloc[i],
+            "chg_3m": value - s.iloc[i - 3] if i >= 3 else float("nan"),
+            "chg_1y": value - s.iloc[i - 12] if i >= 12 else float("nan")}
+    if cfg["downside"]:
+        cols["z_score_standard"] = zscore(s, cfg["window"], False).iloc[i]
+    cols["mtd_days"] = days
+    rows = []
+    for metric, v in cols.items():
+        if pd.isna(v):
+            continue
+        unit = "sd" if metric.startswith("z_score") else ("days" if metric == "mtd_days" else cfg["unit"])
+        rows.append([through, ent, metric, f"{float(v):.6g}", unit, release, "real", "FALSE"])
+    return rows
 
 
 def write(files, out_dir):
@@ -393,6 +486,8 @@ def main(argv=None):
     b.add_argument("--team1-release", help="Team 1 release folder; momentum then uses its factors_monthly.csv")
     b.add_argument("--public", action="store_true",
                    help="leave out the ICE BofA spreads (hy_oas, ig_oas), for files on the public page")
+    b.add_argument("--mtd", help="month-to-date file; default: macro_mtd.csv next to --macro, if it exists")
+    b.add_argument("--no-mtd", action="store_true", help="full months only, no month-to-date readings")
     b.add_argument("-o", "--output", required=True, help="folder for <entity>.csv files")
     a = ap.parse_args(argv)
     try:
@@ -405,7 +500,9 @@ def main(argv=None):
                 if not info.exists():
                     raise EngineError("give --release-id, or keep pull_info.json next to the macro file")
                 rid = json.loads(info.read_text(encoding="utf-8"))["release_id"]
-            write(build(a.macro, rid, a.team1_release, a.public), a.output)
+            mtd = a.mtd or Path(a.macro).with_name("macro_mtd.csv")
+            mtd = mtd if (a.mtd or Path(mtd).exists()) and not a.no_mtd else None
+            write(build(a.macro, rid, a.team1_release, a.public, mtd), a.output)
     except EngineError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

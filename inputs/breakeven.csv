@@ -1033,3 +1033,8 @@ date,entity,metric,value,unit,release_id,data_status,validated
 2026-10,breakeven,z_score,0.676048,sd,public_2026-11-13,real,FALSE
 2026-10,breakeven,chg_3m,0.00102208,decimal,public_2026-11-13,real,FALSE
 2026-10,breakeven,chg_1y,0.000435714,decimal,public_2026-11-13,real,FALSE
+2026-11-10,breakeven,level,0.0224857,decimal,public_2026-11-13,real,FALSE
+2026-11-10,breakeven,z_score,0.370589,sd,public_2026-11-13,real,FALSE
+2026-11-10,breakeven,chg_3m,-0.000385714,decimal,public_2026-11-13,real,FALSE
+2026-11-10,breakeven,chg_1y,-0.000175397,decimal,public_2026-11-13,real,FALSE
+2026-11-10,breakeven,mtd_days,7,days,public_2026-11-13,real,FALSE

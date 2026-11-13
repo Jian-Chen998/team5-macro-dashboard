@@ -186,6 +186,7 @@ th.num{white-space:normal}  /* long numeric headers wrap, so wide tables fit wit
 td.meaning{min-width:240px}
 .eng{font-weight:600}
 .small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.small.mtd{white-space:nowrap;font-style:italic}
 .detail{display:none}
 body.details .detail{display:block}
 body.details th.detail, body.details td.detail{display:table-cell}
@@ -442,6 +443,7 @@ td{border-bottom:1px solid var(--grid)}
       <li><b>Review.</b> "Pending review" means Team 4 has not yet checked the number. Numbers may be updated after review.</li>
       <li><b>VIX.</b> As in the strategy memo of Sep 22, 2026, the VIX is scored against its downside variation only. The memo's own example (14.28, score &minus;1.63; usual score &minus;0.66) is built in and is replaced when newer VIX data is loaded.</li>
       <li><b>Data.</b> Signals are monthly averages from public sources (FRED, Shiller CAPE, French Data Library). Each is scored against its own past 10 years (3 years for the real rate). Data that was never published stays blank; for example, there was no October 2025 CPI.</li>
+      <li><b>Month to date.</b> The page updates every weekday. For the six signals built from daily data, the newest reading averages this month's trading days so far (at least 5) and is scored like a full month. It is provisional, marked "Month to date", and drawn hollow in the history chart until the month ends. The real rate and momentum come from monthly data, so they show the last full month.</li>
       <li class="detail"><b>Data format.</b> Following Team 1's conventions, rates are stored as decimals (0.025 means 2.5%). Every row carries a <code>data_status</code> (real, synthetic or placeholder) and a <code>release_id</code>. Only real rows are read as signals.</li>
     </ul>
   </section>
@@ -594,10 +596,12 @@ function prettyDate(d){
 
 function state(e, m){
   var z=get(m,e.id,'z_score'), lv=get(m,e.id,'level'), c3=get(m,e.id,'chg_3m'), c1=get(m,e.id,'chg_1y'), zs=get(m,e.id,'z_score_standard');
-  var head = z||lv||{};
+  var head = z||lv||{}, mtd = get(m,e.id,'mtd_days');
   var o = {e:e, z:z&&z.value, lv:lv&&lv.value, c3:c3&&c3.value, c1:c1&&c1.value, zs:zs&&zs.value,
            unit:(lv&&lv.unit)||e.unit, date:head.date, release:head.release, status:head.status,
-           validated:!!(z&&z.validated), demo:false};
+           validated:!!(z&&z.validated), demo:false,
+           // A month-to-date reading: the average of this month's trading days so far, not yet final.
+           mtd: (mtd && mtd.date===head.date) ? mtd.value : undefined};
   if(o.z===undefined && demoOn && DEMO[e.id]){
     var d = DEMO[e.id];
     o.z=d.z; o.lv=d.level; o.c3=d.c3; o.c1=d.c1; o.unit=e.unit; o.date=''; o.release='preview'; o.status='placeholder'; o.demo=true;
@@ -617,8 +621,9 @@ function render(){
 
   document.getElementById('demoBanner').className = 'banner' + (demoOn?' on':'');
   var dates = real.map(function(s){return s.date;}).filter(Boolean).sort();
+  var anyMtd = real.some(function(s){ return s.mtd!==undefined; });
   document.getElementById('sub').textContent =
-    (dates.length ? 'Data as of '+prettyDate(dates[dates.length-1]) : 'No market data loaded yet') + ' · Prepared by Team 5 for First Bank portfolio managers';
+    (dates.length ? 'Data as of '+prettyDate(dates[dates.length-1])+(anyMtd ? ' (this month so far, provisional)' : '') : 'No market data loaded yet') + ' · Prepared by Team 5 for First Bank portfolio managers';
   var checked = real.filter(function(s){ return s.validated; }).length;
   document.getElementById('reviewChip').textContent = !real.length ? 'No numbers to review yet' :
     (checked===real.length ? '✓ All numbers checked by Team 4' :
@@ -813,13 +818,16 @@ function renderTable(st){
     html += '<tr class="grouprow"><td colspan="7">'+GROUPS[g]+'</td></tr>';
     st.filter(function(s){return s.e.group===g;}).forEach(function(s){
       var has = s.z!==undefined, zn = has ? zone(s.z) : '';
-      var review = !has ? '' : (s.status==='real'
+      var review = !has ? '' : (s.mtd!==undefined
+            ? '<span class="small">Provisional: average of '+s.mtd+' trading days through '+esc(prettyDate(s.date))+'; final at month end.</span>' : '') +
+          (!has ? '' : (s.status==='real'
             ? '<span class="small review'+(s.validated?' ok':'')+'">'+(s.validated?'Checked by Team 4':'Pending review')+'</span>'
-            : '<span class="small"><span class="flag">TEST</span> '+STATUS_LABEL[s.status||'unknown']+' data, not a real reading</span>');
+            : '<span class="small"><span class="flag">TEST</span> '+STATUS_LABEL[s.status||'unknown']+' data, not a real reading</span>'));
       html += '<tr><td class="eng">'+s.e.name+'<span class="small">'+s.e.what+'</span>'+
         '<span class="small detail">Owner '+s.e.owner+' · '+s.e.source+(s.release?' · Release '+esc(s.release):'')+(s.date?' · Data date '+esc(s.date):'')+'</span>'+
         (s.zs!==undefined ? '<span class="small detail">Usual (non-downside) score: '+zfmt(s.zs)+'</span>' : '')+'</td>'+
-        '<td class="num">'+fmtLevel(s.lv, s.unit)+'</td>'+
+        '<td class="num">'+fmtLevel(s.lv, s.unit)+
+          (s.mtd!==undefined ? '<span class="small mtd" title="Average of '+s.mtd+' trading days this month, through '+esc(prettyDate(s.date))+'. Final at month end.">Month to date</span>' : '')+'</td>'+
         '<td class="num">'+(has?'<b>'+zfmt(s.z)+'</b>':'—')+'</td>'+
         '<td class="num">'+fmtChg(s.c3, s.unit)+'</td><td class="num">'+fmtChg(s.c1, s.unit)+'</td>'+
         '<td>'+(has?'<span class="reading '+zn+'"><i></i>'+zoneLabel(s.z)+'</span>':'<span class="small">No data yet</span>')+'</td>'+
@@ -844,7 +852,9 @@ function series(id, metric){
     // Same date sent twice: the later row wins, as in latest().
     by[r.date] = {date:r.date, t:t, v:v, status:r.data_status, unit:r.unit};
   });
-  var out = Object.keys(by).sort().map(function(k){ return by[k]; });
+  var mtd = {};
+  rows.forEach(function(r){ if(r.entity===id && r.metric==='mtd_days' && r.date) mtd[r.date] = +r.value; });
+  var out = Object.keys(by).sort().map(function(k){ if(mtd[k]) by[k].mtd = mtd[k]; return by[k]; });
   if(!out.length && demoOn && DEMO[id]) out = demoSeries(id, metric);
   return out;
 }
@@ -927,7 +937,7 @@ function renderHistory(){
   h += '<p class="small" style="margin:6px 0 0">'+esc(note)+'</p>';
   if(pts.length){
     h += '<details class="numbers"><summary>Show the numbers</summary><div class="tablewrap"><table style="min-width:0;max-width:440px"><thead><tr><th>Date</th><th class="num">'+(isZ?'Score':'Level')+'</th><th>Data</th></tr></thead><tbody>'+
-      pts.slice().reverse().map(function(p){ return '<tr><td>'+esc(prettyDate(p.date))+'</td><td class="num">'+esc(histFmt(p.v, unit))+'</td><td>'+esc(STATUS_LABEL[p.status]||p.status)+'</td></tr>'; }).join('')+
+      pts.slice().reverse().map(function(p){ return '<tr><td>'+esc(prettyDate(p.date))+'</td><td class="num">'+esc(histFmt(p.v, unit))+'</td><td>'+esc(STATUS_LABEL[p.status]||p.status)+(p.mtd?', month to date (provisional)':'')+'</td></tr>'; }).join('')+
       '</tbody></table></div></details>';
   }
   box.innerHTML = h;
@@ -995,8 +1005,10 @@ function drawHistory(){
     if(i < pts.length-1) s += '<circle cx="'+X(p.t)+'" cy="'+Y(p.v)+'" r="4" style="fill:'+dot(p)+';stroke:var(--surface);stroke-width:2"/>';
   });
   var last = pts[pts.length-1], lx = X(last.t), ly = Y(last.v);
-  s += '<circle cx="'+lx+'" cy="'+ly+'" r="5.5" style="fill:'+dot(last)+';stroke:var(--surface);stroke-width:2"/>'+
-       '<text x="'+(lx+10)+'" y="'+(ly+4)+'" style="fill:var(--ink);font-weight:650">'+esc(histFmt(last.v, unit))+(test?' TEST':'')+'</text>'+
+  // A month-to-date reading is drawn hollow: it is not final until the month ends.
+  s += (last.mtd ? '<circle cx="'+lx+'" cy="'+ly+'" r="5" style="fill:var(--surface);stroke:'+dot(last)+';stroke-width:2.5"/>'
+                 : '<circle cx="'+lx+'" cy="'+ly+'" r="5.5" style="fill:'+dot(last)+';stroke:var(--surface);stroke-width:2"/>')+
+       '<text x="'+(lx+10)+'" y="'+(ly+4)+'" style="fill:var(--ink);font-weight:650">'+esc(histFmt(last.v, unit))+(test?' TEST':'')+(last.mtd?' MTD':'')+'</text>'+
        '<line id="hx" y1="'+mt+'" y2="'+(mt+ph)+'" style="stroke:var(--ink-2);stroke-width:1;display:none"/>'+
        '<circle id="hc" r="6" style="fill:none;stroke:var(--ink);stroke-width:2;display:none"/>'+
        '<rect x="'+(ml-12)+'" y="'+mt+'" width="'+(pw+24)+'" height="'+ph+'" style="fill:transparent"/></svg>';
@@ -1011,6 +1023,7 @@ function drawHistory(){
     var lines = [['tv', histFmt(p.v, unit)], ['tn', e.name + (isZ ? ' · score' : ' · level')], ['', prettyDate(p.date)]];
     if(isZ) lines.push(['', zoneLabel(p.v)]);
     if(p.status!=='real') lines.push(['tn', 'Test or placeholder data, not a real reading.']);
+    if(p.mtd) lines.push(['tn', 'Month to date: average of '+p.mtd+' trading days. Provisional until the month ends.']);
     tipLines(lines, cx, cy);
   };
   var hide = function(){ hx.style.display = 'none'; hc.style.display = 'none'; hideTip(); };

@@ -1,13 +1,14 @@
-# Refreshes the eight signal files in inputs/ from public data once a month,
-# then updates both main and gh-pages so the public page shows the new month.
-# Runs on the 20th, after the previous month's CPI is out. It can also be started
-# by hand (Actions tab > Refresh signals > Run workflow), and it runs when the
-# engine code or this file changes.
+# Refreshes the eight signal files in inputs/ from public data every weekday, then
+# updates both main and gh-pages so the public page shows the new data. Runs at
+# 14:00 UTC (9 or 10 am in New York), when FRED has the previous day's values.
+# Each run rebuilds the full months and this month's provisional, month-to-date
+# readings. It can also be started by hand (Actions tab > Refresh signals > Run
+# workflow), and it runs when the engine code or this file changes.
 name: Refresh signals
 
 on:
   schedule:
-    - cron: "0 14 20 * *"
+    - cron: "0 14 * * 1-5"
   workflow_dispatch:
   push:
     branches: [main]

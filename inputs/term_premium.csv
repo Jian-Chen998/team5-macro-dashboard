@@ -1657,3 +1657,8 @@ date,entity,metric,value,unit,release_id,data_status,validated
 2026-10,term_premium,z_score,2.32074,sd,public_2026-11-13,real,FALSE
 2026-10,term_premium,chg_3m,0.00216404,decimal,public_2026-11-13,real,FALSE
 2026-10,term_premium,chg_1y,0.00544704,decimal,public_2026-11-13,real,FALSE
+2026-11-06,term_premium,level,0.0089182,decimal,public_2026-11-13,real,FALSE
+2026-11-06,term_premium,z_score,1.95205,sd,public_2026-11-13,real,FALSE
+2026-11-06,term_premium,chg_3m,0.000463343,decimal,public_2026-11-13,real,FALSE
+2026-11-06,term_premium,chg_1y,0.00406848,decimal,public_2026-11-13,real,FALSE
+2026-11-06,term_premium,mtd_days,5,days,public_2026-11-13,real,FALSE

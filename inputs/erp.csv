@@ -3684,3 +3684,8 @@ date,entity,metric,value,unit,release_id,data_status,validated
 2026-10,erp,chg_3m,-0.00574505,decimal,public_2026-11-13,real,FALSE
 2026-10,erp,chg_1y,-0.0116342,decimal,public_2026-11-13,real,FALSE
 2026-10,erp,percentile_10y,0.00833333,fraction,public_2026-11-13,real,FALSE
+2026-11-10,erp,level,-0.0244649,decimal,public_2026-11-13,real,FALSE
+2026-11-10,erp,z_score,-1.82232,sd,public_2026-11-13,real,FALSE
+2026-11-10,erp,chg_3m,-0.00201984,decimal,public_2026-11-13,real,FALSE
+2026-11-10,erp,chg_1y,-0.00906913,decimal,public_2026-11-13,real,FALSE
+2026-11-10,erp,mtd_days,7,days,public_2026-11-13,real,FALSE

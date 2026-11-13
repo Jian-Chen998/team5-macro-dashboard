@@ -204,5 +204,63 @@ class Build(unittest.TestCase):
             me.build(self.d / "m.csv", "x")
 
 
+class MonthToDate(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.d = Path(self.tmp.name)
+        self.ps = write_macro(self.d / "m.csv")  # full months 2014-01 .. 2026-06
+        self.cur = str(pd.Period(self.ps[-1], "M") + 1)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def write_mtd(self, days=6, vix=30.0):
+        through = self.cur + "-09"
+        rows = [[self.cur, sid, v, "fred", days, through] for sid, v in
+                (("DGS10", 0.05), ("DGS2", 0.02), ("DFII10", 0.02), ("VIXCLS", vix), ("THREEFYTP10", 0.006), ("BAA10Y", 0.02))]
+        pd.DataFrame(rows, columns=me.MTD_COLUMNS).to_csv(self.d / "mtd.csv", index=False)
+        return through
+
+    def test_parse_fred_mtd(self):
+        text = "observation_date,DGS10\n2026-10-30,4.0\n2026-11-02,5.0\n2026-11-03,.\n2026-11-04,5.2\n"
+        row = me.parse_fred_mtd(text, "DGS10", "2026-11")
+        self.assertAlmostEqual(row[2], 0.051)
+        self.assertEqual(row[4:], [2, "2026-11-04"])
+        self.assertIsNone(me.parse_fred_mtd(text, "DGS10", "2026-12"))
+
+    def test_provisional_rows_are_scored_like_a_month(self):
+        through = self.write_mtd()
+        files = me.build(self.d / "m.csv", "x", mtd_path=self.d / "mtd.csv")
+        vol = {r[2]: r for r in files["volatility"] if r[0] == through}
+        self.assertEqual(float(vol["level"][3]), 30.0)
+        self.assertEqual(float(vol["mtd_days"][3]), 6)
+        self.assertEqual(vol["mtd_days"][4], "days")
+        monthly = pd.Series([15 + (i % 7) for i in range(len(self.ps))] + [30.0], index=self.ps + [self.cur])
+        want = me.zscore(monthly, 120, downside=True).iloc[-1]
+        self.assertAlmostEqual(float(vol["z_score"][3]), want, places=4)
+        self.assertAlmostEqual(float(vol["chg_3m"][3]), 30.0 - monthly.iloc[-4], places=4)
+        self.assertIn("z_score_standard", vol)
+        yc = {r[2]: r for r in files["yield_curve"] if r[0] == through}
+        self.assertAlmostEqual(float(yc["level"][3]), 0.03)
+        erp = {r[2]: r for r in files["erp"] if r[0] == through}
+        self.assertAlmostEqual(float(erp["level"][3]), 1 / 30 - 0.05, places=6)
+        for ent in ("real_rate", "momentum"):  # monthly inputs: no month-to-date reading
+            self.assertFalse(any(r[0] == through for r in files[ent]), ent)
+
+    def test_too_few_days_gives_no_provisional_reading(self):
+        through = self.write_mtd(days=me.MIN_MTD_DAYS - 1)
+        files = me.build(self.d / "m.csv", "x", mtd_path=self.d / "mtd.csv")
+        self.assertFalse(any(r[0] == through for rows in files.values() for r in rows))
+
+    def test_cli_uses_the_mtd_file_next_to_the_macro_file(self):
+        self.write_mtd()
+        (self.d / "mtd.csv").rename(self.d / "macro_mtd.csv")
+        out = self.d / "out"
+        self.assertEqual(me.main(["build", "--macro", str(self.d / "m.csv"), "--release-id", "x", "-o", str(out)]), 0)
+        self.assertIn("mtd_days", (out / "credit.csv").read_text())
+        self.assertEqual(me.main(["build", "--macro", str(self.d / "m.csv"), "--release-id", "x", "--no-mtd", "-o", str(out)]), 0)
+        self.assertNotIn("mtd_days", (out / "credit.csv").read_text())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
