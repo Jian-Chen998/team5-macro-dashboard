@@ -324,7 +324,9 @@ def engine_levels(w, market=None):
         "erp": {"level": 1.0 / g("SHILLER_CAPE") - g("DGS10")},
         "volatility": {"level": g("VIXCLS")},
         "momentum": {"level": r12, "risk_adjusted_12m": r12 / vol, "risk_adjusted_3m": r3 / (vol * math.sqrt(3 / 12))},
-        "yield_curve": {"level": g("DGS10") - g("DGS2")},
+        "yield_curve": {"level": g("DGS10") - g("DGS2"),
+                        # each leg's 3-month move tells the curve's regime (bull/bear, steepening/flattening)
+                        "chg_3m_10y": g("DGS10") - g("DGS10").shift(3), "chg_3m_2y": g("DGS2") - g("DGS2").shift(3)},
         "credit": {"level": g("BAA10Y"), "hy_oas": g("BAMLH0A0HYM2"), "ig_oas": g("BAMLC0A0CM")},
     }
     return out
@@ -333,7 +335,8 @@ def engine_levels(w, market=None):
 # The Z-score is computed on this metric (the level, unless named here).
 SCORE_ON = {"momentum": "risk_adjusted_12m"}
 EXTRA_UNITS = {"level_core": "decimal", "risk_adjusted_12m": "ratio", "risk_adjusted_3m": "ratio",
-               "hy_oas": "decimal", "ig_oas": "decimal", "chg_1m": None, "percentile_10y": "fraction"}
+               "hy_oas": "decimal", "ig_oas": "decimal", "chg_1m": None, "percentile": "fraction",
+               "chg_3m_10y": "decimal", "chg_3m_2y": "decimal"}
 
 
 def percentile(s, window):
@@ -379,8 +382,8 @@ def build(macro_path, release_id, team1_release=None, public=False, mtd_path=Non
             cols["z_score_standard"] = zscore(base, cfg["window"], False)
         if ent == "yield_curve":
             cols["chg_1m"] = mets["level"] - mets["level"].shift(1)
-        if ent == "erp":
-            cols["percentile_10y"] = percentile(mets["level"], 120)
+        # Share of the window's months at or below this one, on the same series and window as the score.
+        cols["percentile"] = percentile(base, cfg["window"])
         for k, s in mets.items():
             if k != "level" and not (public and k in NOT_PUBLIC):
                 cols[k] = s
@@ -452,12 +455,18 @@ def provisional_rows(ent, cfg, level, w, mtd, release):
             "chg_1y": value - s.iloc[i - 12] if i >= 12 else float("nan")}
     if cfg["downside"]:
         cols["z_score_standard"] = zscore(s, cfg["window"], False).iloc[i]
+    cols["percentile"] = percentile(s, cfg["window"]).iloc[i]
+    if ent == "yield_curve":
+        back = str(pd.Period(period, "M") - 3)
+        for sid, metric in (("DGS10", "chg_3m_10y"), ("DGS2", "chg_3m_2y")):
+            past = w[sid].get(back, float("nan")) if sid in w else float("nan")
+            cols[metric] = float(mtd[sid].value) - past
     cols["mtd_days"] = days
     rows = []
     for metric, v in cols.items():
         if pd.isna(v):
             continue
-        unit = "sd" if metric.startswith("z_score") else ("days" if metric == "mtd_days" else cfg["unit"])
+        unit = "sd" if metric.startswith("z_score") else ("days" if metric == "mtd_days" else (EXTRA_UNITS.get(metric) or cfg["unit"]))
         rows.append([through, ent, metric, f"{float(v):.6g}", unit, release, "real", "FALSE"])
     return rows
 

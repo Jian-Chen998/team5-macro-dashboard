@@ -25,13 +25,13 @@ To take stock market returns from a Team 1 release instead of the French file, a
 | `real_rate` | 10-year Treasury yield minus headline CPI inflation over the past 12 months. Core CPI is also included as `level_core`. | FRED DGS10, CPIAUCSL, CPILFESL | 36 months (the memo's "36-month bands") |
 | `breakeven` | 10-year Treasury yield minus 10-year TIPS yield | FRED DGS10, DFII10 | 120 months |
 | `term_premium` | 10-year term premium from the Kim-Wright model | FRED THREEFYTP10 | 120 months |
-| `erp` | Earnings yield (1 / CAPE) minus the 10-year Treasury yield. Also includes `percentile_10y`, the memo's 10-year percentile rank. | Shiller CAPE (shillerdata.com), FRED DGS10 | 120 months |
+| `erp` | Earnings yield (1 / CAPE) minus the 10-year Treasury yield. | Shiller CAPE (shillerdata.com), FRED DGS10 | 120 months |
 | `volatility` | VIX, monthly average | FRED VIXCLS | 120 months, **downside semi-deviation** (memo). `z_score_standard` holds the usual score. |
 | `momentum` | US stock market total return over 12 months. Also includes `risk_adjusted_12m` and `risk_adjusted_3m`. | French Data Library, US market (Team 1's source) | 120 months, on the 12-month return divided by its annualized volatility (memo) |
-| `yield_curve` | 10-year minus 2-year Treasury yield. Also includes `chg_1m`, the memo's 30-day velocity. | FRED DGS10, DGS2 | 120 months |
+| `yield_curve` | 10-year minus 2-year Treasury yield. Also includes `chg_1m`, the memo's 30-day velocity, and `chg_3m_10y` and `chg_3m_2y`, the 3-month moves of each yield, from which the dashboard labels the curve regime (bull or bear, steepening or flattening). | FRED DGS10, DGS2 | 120 months |
 | `credit` | Moody's Baa corporate yield minus 10-year Treasury yield. Also includes `hy_oas` and `ig_oas` (ICE BofA). | FRED BAA10Y, BAMLH0A0HYM2, BAMLC0A0CM | 120 months |
 
-Every signal has `level`, `z_score`, `chg_3m` and `chg_1y` for each month, so the history chart has a full line.
+Every signal has `level`, `z_score`, `chg_3m`, `chg_1y` and `percentile` for each month, so the history chart has a full line. `percentile` is the share of months in the score's window with a reading at or below this one, on the same series as the score (the memo asks for a percentile rank for the equity risk premium; all eight have one).
 
 ## Rules
 

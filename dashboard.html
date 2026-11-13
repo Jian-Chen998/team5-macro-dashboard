@@ -188,6 +188,21 @@ td.meaning{min-width:240px}
 .small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
 .small.mtd{white-space:nowrap;font-style:italic}
 .small.asof{white-space:nowrap}
+/* What changed since last month */
+.moves{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.moves li{display:grid;grid-template-columns:minmax(180px,260px) 1fr;gap:12px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--grid);font-size:13px}
+.moves li:last-child{border-bottom:0}
+.moves .mv{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+@media (max-width:760px){ .moves li{grid-template-columns:1fr;gap:2px} }
+/* History heatmap: diverging blue <-> orange around a neutral midpoint, as in the main chart */
+.heatctl{margin:0 0 10px}
+.heatlegend{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin:0 0 10px}
+.heatlegend i{display:inline-block;width:160px;height:10px;border-radius:3px;border:1px solid var(--border)}
+.heat{position:relative;overflow:hidden}
+.heat svg{display:block}
+.heat text{font-size:11px;fill:var(--ink-2)}
+.heat .hl{font-size:12px;fill:var(--ink)}
+.heat .grp{font-size:10.5px;font-weight:650;letter-spacing:.08em;fill:var(--muted)}
 .detail{display:none}
 body.details .detail{display:block}
 body.details th.detail, body.details td.detail{display:table-cell}
@@ -387,6 +402,12 @@ td{border-bottom:1px solid var(--grid)}
 
   <div class="tiles" id="tiles"></div>
 
+  <section class="card" id="movesCard" hidden>
+    <h2>What changed since last month</h2>
+    <p class="lede">The signals whose score moved most since the previous month. A month-to-date reading is compared with the last full month.</p>
+    <ul class="moves" id="moves"></ul>
+  </section>
+
   <div class="toolbar noprint">
     <button id="lookBtn" type="button" aria-pressed="false">Terminal view</button>
     <button id="detailBtn" type="button" aria-pressed="false">Show sources and details</button>
@@ -424,6 +445,14 @@ td{border-bottom:1px solid var(--grid)}
     <div class="tablewrap" id="groups"></div>
   </section>
 
+  <section class="card" id="heatCard">
+    <h2>Signal history at a glance</h2>
+    <p class="lede">Each row is one signal and each column one month. Blue is unusually low and orange unusually high; the stronger the color, the further from normal. Hover or tap a cell to read it. The bottom row marks months when the memo's combined warning was on.</p>
+    <div class="heatctl noprint"><span class="seg" role="group" aria-label="Period" id="heatRange"></span></div>
+    <div class="heatlegend" aria-hidden="true"><span>&minus;3</span><i id="heatGrad"></i><span>+3</span><span class="small" style="display:inline;margin-left:10px">Blank: no data that month</span></div>
+    <div class="heat" id="heat"></div>
+  </section>
+
   <section class="card">
     <h2>Asset allocation</h2>
     <p class="lede">How the portfolio suggested by Team 2's model differs from the reference portfolio.</p>
@@ -434,6 +463,17 @@ td{border-bottom:1px solid var(--grid)}
     <h2>Fund report cards</h2>
     <p class="lede">How each fund has performed, and what drives its returns. Prepared by Team 3.</p>
     <div id="fundPanel"></div>
+  </section>
+
+  <section class="card">
+    <h2>How each signal is built</h2>
+    <p class="lede">Every signal is a monthly reading from public data, scored against its own past. Full details and code: <a href="https://github.com/Jian-Chen998/team5-macro-dashboard/blob/main/engines/README.md" target="_blank" rel="noopener">engines/README.md</a>.</p>
+    <div class="tablewrap" id="methodTable"></div>
+    <ul class="notes">
+      <li><b>Score.</b> (reading &minus; average) &divide; standard deviation, over the window shown. A month is scored only when at least 80% of its window has data; missing months are skipped, never filled.</li>
+      <li><b>Percentile.</b> The share of months in the same window with a reading at or below this one.</li>
+      <li><b>Curve regime.</b> From the 3-month moves of the 2-year and 10-year yields: steepening or flattening by the spread, bull or bear by whether yields fell or rose on average.</li>
+    </ul>
   </section>
 
   <section class="card">
@@ -498,6 +538,17 @@ var ENGINES = [
    high:'Credit spreads are unusually wide, a sign of credit stress.'}
 ];
 var GROUPS = {long:'Long-term signals', short:'Short-term signals'};
+// How each signal is built (engines/macro_engines.py). years: the score's window, used in the percentile text.
+var METHOD = {
+  real_rate:   {years:3,  method:'10-year Treasury yield minus CPI inflation over the past 12 months (core CPI is also kept)', source:'FRED: DGS10, CPIAUCSL, CPILFESL', scored:'Past 3 years (the memo\'s 36-month bands)', updates:'Monthly, after the CPI release'},
+  breakeven:   {years:10, method:'10-year Treasury yield minus the 10-year TIPS yield', source:'FRED: DGS10, DFII10', scored:'Past 10 years', updates:'Every weekday (month to date)'},
+  term_premium:{years:10, method:'10-year term premium from the Kim-Wright model', source:'FRED: THREEFYTP10', scored:'Past 10 years', updates:'Every weekday (month to date)'},
+  erp:         {years:10, method:'Earnings yield (1 ÷ Shiller CAPE) minus the 10-year Treasury yield', source:'Shiller CAPE; FRED: DGS10', scored:'Past 10 years', updates:'Every weekday for the yield; CAPE monthly'},
+  volatility:  {years:10, method:'VIX, monthly average of daily closes', source:'FRED: VIXCLS', scored:'Past 10 years, against downside variation only (memo)', updates:'Every weekday (month to date)'},
+  momentum:    {years:10, method:'US stock market total return over 12 months; scored on that return divided by its volatility (memo)', source:'French Data Library, US market (Team 1\'s source)', scored:'Past 10 years', updates:'Monthly, with a lag of about two months'},
+  yield_curve: {years:10, method:'10-year minus 2-year Treasury yield; the 3-month moves of each yield give the curve regime', source:'FRED: DGS10, DGS2', scored:'Past 10 years', updates:'Every weekday (month to date)'},
+  credit:      {years:10, method:'Moody\'s Baa corporate yield minus the 10-year Treasury yield', source:'FRED: BAA10Y', scored:'Past 10 years', updates:'Every weekday (month to date)'}
+};
 // Column names follow Team 1's contract: release_id and data_status (real | synthetic | placeholder).
 var HEADER = 'date,entity,metric,value,unit,release_id,data_status,validated';
 // mixed and hypothetical come from Team 2's reference and scenario records.
@@ -603,9 +654,12 @@ function prettyDate(d){
 function state(e, m){
   var z=get(m,e.id,'z_score'), lv=get(m,e.id,'level'), c3=get(m,e.id,'chg_3m'), c1=get(m,e.id,'chg_1y'), zs=get(m,e.id,'z_score_standard');
   var head = z||lv||{}, mtd = get(m,e.id,'mtd_days');
+  // Extras count only when they belong to the same reading (same date) as the score.
+  var same = function(r){ return r && r.date===head.date ? r.value : undefined; };
+  var pct = same(get(m,e.id,'percentile')), c10 = same(get(m,e.id,'chg_3m_10y')), c2 = same(get(m,e.id,'chg_3m_2y'));
   var o = {e:e, z:z&&z.value, lv:lv&&lv.value, c3:c3&&c3.value, c1:c1&&c1.value, zs:zs&&zs.value,
            unit:(lv&&lv.unit)||e.unit, date:head.date, release:head.release, status:head.status,
-           validated:!!(z&&z.validated), demo:false,
+           validated:!!(z&&z.validated), demo:false, pct:pct, c10:c10, c2:c2,
            // A month-to-date reading: the average of this month's trading days so far, not yet final.
            mtd: (mtd && mtd.date===head.date) ? mtd.value : undefined};
   if(o.z===undefined && demoOn && DEMO[e.id]){
@@ -677,6 +731,9 @@ function render(){
   renderChart(st);
   renderHistory();
   renderTable(st);
+  renderMoves(st);
+  drawHeat();
+  renderMethod();
 
   var j = document.getElementById('joint');
   if(vol.z!==undefined && cr.z!==undefined){
@@ -821,12 +878,50 @@ function tipLines(lines, x, y){
 }
 function hideTip(){ document.getElementById('tip').style.display = 'none'; }
 
+// "Higher than 92% of the past 10 years": the percentile in plain words.
+function pctText(p, id){
+  if(p===undefined || p===null) return '';
+  var yrs = (METHOD[id] || {}).years || 10, months = yrs * 12, span = 'the past '+yrs+' years';
+  if(p >= 0.995) return 'Highest in '+span;
+  if(p * months <= 1.0001) return 'Lowest in '+span;
+  return p >= 0.5 ? 'Higher than '+Math.round(p*100)+'% of '+span : 'Lower than '+Math.round((1-p)*100)+'% of '+span;
+}
+// One score per month for a signal. A full-month reading wins over a dated one in the same month
+// (a dated row is a month-to-date reading, or the memo's example), so each month counts once.
+function monthlyZ(id){
+  var b = {};
+  series(id, 'z_score').forEach(function(p){
+    if(p.status!=='real') return;
+    var k = p.date.slice(0,7), full = p.date.length===7, c = b[k];
+    if(!c || (full && !c.full) || (full===c.full && p.date > c.date)) b[k] = {month:k, date:p.date, v:p.v, full:full, mtd:p.mtd};
+  });
+  return Object.keys(b).sort().map(function(k){ return b[k]; });
+}
+// Score change from the previous month to the latest one.
+function monthMove(id){
+  var s = monthlyZ(id);
+  if(s.length < 2) return null;
+  var a = s[s.length-2], b = s[s.length-1];
+  var gap = (+b.month.slice(0,4)*12 + +b.month.slice(5,7)) - (+a.month.slice(0,4)*12 + +a.month.slice(5,7));
+  return gap===1 ? {from:a, to:b, d:b.v - a.v} : null;
+}
+function monthName(k){ return MONTHS[+k.slice(5,7)-1] + ' ' + k.slice(0,4); }
+// Curve regime from the 3-month moves of the 10-year and 2-year yields.
+function curveRegime(d10, d2){
+  if(d10===undefined || d2===undefined) return '';
+  var ds = d10 - d2, legs = '10-year '+pp(d10)+', 2-year '+pp(d2)+' over 3 months';
+  if(Math.abs(ds) < 0.0005) return 'Curve regime: little change in slope ('+legs+').';
+  var kind = ((d10 + d2) / 2 < 0 ? 'Bull ' : 'Bear ') + (ds > 0 ? 'steepening' : 'flattening');
+  return 'Curve regime: '+kind+' ('+legs+').';
+}
+
 function renderTable(st){
   var html = '<table><thead><tr><th>Signal</th><th class="num">Today</th><th class="num">Score</th><th class="num">3-month change</th><th class="num">1-year change</th><th>Reading</th><th>What it means</th></tr></thead><tbody>';
   Object.keys(GROUPS).forEach(function(g){
     html += '<tr class="grouprow"><td colspan="7">'+GROUPS[g]+'</td></tr>';
     st.filter(function(s){return s.e.group===g;}).forEach(function(s){
       var has = s.z!==undefined, zn = has ? zone(s.z) : '';
+      var mv = has && s.status==='real' ? monthMove(s.e.id) : null;
       var review = !has ? '' : (s.mtd!==undefined
             ? '<span class="small">Provisional: average of '+s.mtd+' trading days through '+esc(prettyDate(s.date))+'; final at month end.</span>' : '') +
           (!has ? '' : (s.status==='real'
@@ -838,13 +933,129 @@ function renderTable(st){
         '<td class="num">'+fmtLevel(s.lv, s.unit)+
           (s.mtd!==undefined ? '<span class="small mtd" title="Average of '+s.mtd+' trading days this month, through '+esc(prettyDate(s.date))+'. Final at month end.">MTD to '+esc(dayMonth(s.date))+'</span>'
                              : (has && s.date ? '<span class="small asof" title="Data date of this reading">'+esc(prettyDate(s.date))+'</span>' : ''))+'</td>'+
-        '<td class="num">'+(has?'<b>'+zfmt(s.z)+'</b>':'—')+'</td>'+
+        '<td class="num">'+(has?'<b>'+zfmt(s.z)+'</b>':'—')+
+          (mv ? '<span class="small" title="Score change from '+esc(monthName(mv.from.month))+'">'+colored(mv.d, sign(mv.d)+Math.abs(mv.d).toFixed(2))+' vs '+MONTHS[+mv.from.month.slice(5,7)-1]+'</span>' : '')+'</td>'+
         '<td class="num">'+fmtChg(s.c3, s.unit)+'</td><td class="num">'+fmtChg(s.c1, s.unit)+'</td>'+
-        '<td>'+(has?'<span class="reading '+zn+'"><i></i>'+zoneLabel(s.z)+'</span>':'<span class="small">No data yet</span>')+'</td>'+
-        '<td class="meaning">'+(has?esc(meaning(s.e, s.z)):'')+review+'</td></tr>';
+        '<td>'+(has?'<span class="reading '+zn+'"><i></i>'+zoneLabel(s.z)+'</span>'+
+          (s.pct!==undefined && s.status==='real' ? '<span class="small">'+esc(pctText(s.pct, s.e.id))+'</span>' : ''):'<span class="small">No data yet</span>')+'</td>'+
+        '<td class="meaning">'+(has?esc(meaning(s.e, s.z)):'')+
+          (has && s.e.id==='yield_curve' && s.status==='real' && s.c10!==undefined ? '<span class="small">'+esc(curveRegime(s.c10, s.c2))+'</span>' : '')+review+'</td></tr>';
     });
   });
   document.getElementById('groups').innerHTML = html + '</tbody></table>';
+}
+
+// ---------- What changed since last month ----------
+function renderMoves(st){
+  var items = st.filter(function(s){ return s.status==='real' && s.z!==undefined; })
+    .map(function(s){ return {s:s, mv:monthMove(s.e.id)}; })
+    .filter(function(x){ return x.mv; })
+    .sort(function(a, b){ return Math.abs(b.mv.d) - Math.abs(a.mv.d); }).slice(0, 3);
+  var card = document.getElementById('movesCard');
+  card.hidden = !items.length;
+  document.getElementById('moves').innerHTML = items.map(function(x){
+    var a = x.mv.from, b = x.mv.to, za = zone(a.v), zb = zone(b.v);
+    var when = function(p){ return MONTHS[+p.month.slice(5,7)-1] + (p.full ? '' : ' so far'); };
+    return '<li><span class="eng">'+esc(x.s.e.name)+'</span><span class="mv">Score '+zfmt(a.v)+' ('+when(a)+') &rarr; '+zfmt(b.v)+' ('+when(b)+'), '+
+      colored(x.mv.d, sign(x.mv.d)+Math.abs(x.mv.d).toFixed(2))+
+      (za!==zb ? '. Now <b>'+zoneLabel(b.v).toLowerCase()+'</b>' : '')+'.</span></li>';
+  }).join('');
+}
+
+// ---------- Signal history heatmap ----------
+var heatRange = '10y', heatCells = null;
+var HEAT_RANGES = [['5y','5Y',5],['10y','10Y',10],['20y','20Y',20],['all','All',0]];
+var SHORT = {real_rate:'Real rate', breakeven:'Expected inflation', term_premium:'Term premium', erp:'Equity risk premium',
+             volatility:'Volatility (VIX)', momentum:'Momentum', yield_curve:'Yield curve', credit:'Credit spreads'};
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function hexRgb(h){ h = h.replace('#',''); if(h.length===3) h = h.replace(/./g, '$&$&'); var n = parseInt(h, 16); return [n>>16 & 255, n>>8 & 255, n & 255]; }
+function mixHex(a, b, t){ var x = hexRgb(a), y = hexRgb(b); return 'rgb('+x.map(function(v, i){ return Math.round(v + (y[i]-v)*t); }).join(',')+')'; }
+function heatColor(z, pal){ var t = Math.pow(Math.min(Math.abs(z), 3) / 3, 0.85); return mixHex(pal.mid, z < 0 ? pal.low : pal.high, t); }
+function monthIndex(k){ return +k.slice(0,4)*12 + (+k.slice(5,7) - 1); }
+function monthKey(i){ return Math.floor(i/12) + '-' + ('0' + (i%12 + 1)).slice(-2); }
+
+function drawHeat(){
+  var el = document.getElementById('heat'); if(!el) return;
+  var segs = document.getElementById('heatRange');
+  segs.innerHTML = HEAT_RANGES.map(function(r){ return '<button type="button" data-h="'+r[0]+'"'+(r[0]===heatRange?' class="on" aria-pressed="true"':' aria-pressed="false"')+'>'+r[1]+'</button>'; }).join('');
+  Array.prototype.forEach.call(segs.querySelectorAll('button'), function(b){
+    b.addEventListener('click', function(){ heatRange = b.getAttribute('data-h'); drawHeat(); });
+  });
+  var pal = {low:cssVar('--low'), high:cssVar('--high'), mid:cssVar('--grid')};
+  document.getElementById('heatGrad').style.background = 'linear-gradient(to right, '+heatColor(-3, pal)+', '+heatColor(0, pal)+', '+heatColor(3, pal)+')';
+  var data = {}, lo = Infinity, hi = -Infinity;
+  ENGINES.forEach(function(e){
+    var m = {};
+    monthlyZ(e.id).forEach(function(p){ var i = monthIndex(p.month); m[i] = p; lo = Math.min(lo, i); hi = Math.max(hi, i); });
+    data[e.id] = m;
+  });
+  if(hi < lo){ el.innerHTML = '<div class="waiting">Waiting for signal data.</div>'; heatCells = null; return; }
+  var yrs = (HEAT_RANGES.filter(function(r){ return r[0]===heatRange; })[0] || [0,0,10])[2];
+  var start = yrs ? Math.max(lo, hi - yrs*12 + 1) : lo, n = hi - start + 1;
+  var W = Math.max(320, Math.round(el.clientWidth || 900)), narrow = W < 600;
+  var labelW = narrow ? 118 : 160, rowH = narrow ? 16 : 18, gapG = 10, cw = (W - labelW - 6) / n, gap = cw >= 5 ? 1 : 0;
+  var rowsDef = [], y = 18;
+  Object.keys(GROUPS).forEach(function(g, gi){
+    if(gi) y += gapG;
+    rowsDef.push({grp:GROUPS[g], y:y}); y += 14;
+    ENGINES.filter(function(e){ return e.group===g; }).forEach(function(e){ rowsDef.push({e:e, y:y}); y += rowH; });
+  });
+  y += gapG; var warnY = y; y += rowH;
+  var H = y + 24;
+  var X = function(i){ return labelW + (i - start) * cw; };
+  var s = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" role="img" aria-label="'+esc('Heatmap of the eight signal scores by month, '+monthName(monthKey(start))+' to '+monthName(monthKey(hi))+'.')+'">';
+  rowsDef.forEach(function(r){
+    if(r.grp){ s += '<text class="grp" x="0" y="'+(r.y+10)+'">'+esc(r.grp.toUpperCase())+'</text>'; return; }
+    s += '<text class="hl" x="0" y="'+(r.y + rowH*0.7)+'">'+esc(narrow ? SHORT[r.e.id] : SHORT[r.e.id])+'</text>';
+    var m = data[r.e.id];
+    for(var i = start; i <= hi; i++){
+      var p = m[i]; if(!p) continue;
+      s += '<rect x="'+X(i).toFixed(2)+'" y="'+(r.y+1)+'" width="'+Math.max(0.6, cw - gap).toFixed(2)+'" height="'+(rowH-2)+'" style="fill:'+heatColor(p.v, pal)+(p.full?'':';opacity:.55')+'"/>';
+    }
+  });
+  // The memo's combined warning: unusually low VIX and unusually tight credit in the same month.
+  s += '<text class="hl" x="0" y="'+(warnY + rowH*0.7)+'">Combined warning</text>';
+  var nWarn = 0;
+  for(var k = start; k <= hi; k++){
+    var v = data.volatility[k], c = data.credit[k];
+    if(v && c && v.v < -CUT && c.v < -CUT){ nWarn++; s += '<rect x="'+X(k).toFixed(2)+'" y="'+(warnY+4)+'" width="'+Math.max(0.8, cw - gap).toFixed(2)+'" height="'+(rowH-8)+'" style="fill:var(--ink)"/>'; }
+  }
+  s += '<line x1="'+labelW+'" x2="'+(W-6)+'" y1="'+(warnY+rowH/2)+'" y2="'+(warnY+rowH/2)+'" style="stroke:var(--grid)"/>';
+  var span = n / 12, step = span <= 6 ? 1 : (span <= 12 ? 2 : (span <= 25 ? 5 : 10));
+  for(var t = start; t <= hi; t++){
+    var yr = Math.floor(t/12);
+    if(t % 12 === 0 && yr % step === 0) s += '<line x1="'+X(t)+'" x2="'+X(t)+'" y1="'+(H-22)+'" y2="'+(H-17)+'" style="stroke:var(--axis)"/><text x="'+X(t)+'" y="'+(H-5)+'" text-anchor="middle">'+yr+'</text>';
+  }
+  s += '<rect id="heatHit" x="'+labelW+'" y="0" width="'+(W-labelW)+'" height="'+(H-24)+'" style="fill:transparent"/></svg>';
+  el.innerHTML = s;
+  el.setAttribute('data-warn', nWarn);
+  var svg = el.querySelector('svg');
+  var pick = function(ev){
+    var b = svg.getBoundingClientRect(), px = (ev.clientX - b.left) * W / b.width, py = (ev.clientY - b.top) * H / b.height;
+    var i = start + Math.floor((px - labelW) / cw), row = rowsDef.filter(function(r){ return r.e && py >= r.y && py < r.y + rowH; })[0];
+    if(i < start || i > hi) return hideTip();
+    if(!row && py >= warnY && py < warnY + rowH){
+      var on = data.volatility[i] && data.credit[i] && data.volatility[i].v < -CUT && data.credit[i].v < -CUT;
+      return tipLines([['tv', on ? 'On' : 'Off'], ['tn', 'Combined warning'], ['', monthName(monthKey(i))]], ev.clientX, ev.clientY);
+    }
+    if(!row) return hideTip();
+    var p = data[row.e.id][i];
+    if(!p) return tipLines([['tv', '—'], ['tn', row.e.name], ['', monthName(monthKey(i))+': no data']], ev.clientX, ev.clientY);
+    tipLines([['tv', zfmt(p.v)], ['tn', row.e.name+' · score'], ['', monthName(p.month)+(p.full ? '' : ' (month to date, provisional)')], ['', zoneLabel(p.v)]], ev.clientX, ev.clientY);
+  };
+  svg.addEventListener('mousemove', pick);
+  svg.addEventListener('click', pick);
+  svg.addEventListener('mouseleave', hideTip);
+}
+
+// ---------- How each signal is built ----------
+function renderMethod(){
+  var h = '<table style="min-width:760px"><thead><tr><th>Signal</th><th>How the reading is built</th><th>Source</th><th>Scored against</th><th>Updates</th></tr></thead><tbody>';
+  ENGINES.forEach(function(e){
+    var m = METHOD[e.id] || {};
+    h += '<tr><td class="eng">'+esc(e.name)+'</td><td>'+esc(m.method||'')+'</td><td>'+esc(m.source||'')+'</td><td>'+esc(m.scored||'')+'</td><td>'+esc(m.updates||'')+'</td></tr>';
+  });
+  document.getElementById('methodTable').innerHTML = h + '</tbody></table>';
 }
 
 // ---------- Signal history ----------
@@ -1665,7 +1876,7 @@ document.getElementById('cutReset').addEventListener('click', function(){ setCut
 var resizeTimer;
 window.addEventListener('resize', function(){
   clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(function(){ if(histId) drawHistory(); drawFrontier(); drawFundHistory(); }, 150);
+  resizeTimer = setTimeout(function(){ if(histId) drawHistory(); drawFrontier(); drawFundHistory(); drawHeat(); }, 150);
 });
 render();
 

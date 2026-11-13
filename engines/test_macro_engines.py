@@ -152,6 +152,22 @@ class Build(unittest.TestCase):
         r = [0.01 * ((k % 5) - 1) + 0.002 for k in range(i - 11, i + 1)]
         self.assertAlmostEqual(float(mom[(last, "level")][3]), math.prod(1 + x for x in r) - 1, places=5)
 
+    def test_percentile_and_curve_legs(self):
+        ps = write_macro(self.d / "m.csv")
+        files = me.build(self.d / "m.csv", "x")
+        last = ps[-1]
+        for ent in me.ENGINES:
+            rows = self.table(files, ent)
+            if (last, "z_score") in rows:
+                p = float(rows[(last, "percentile")][3])
+                self.assertTrue(0 < p <= 1, ent)
+                self.assertEqual(rows[(last, "percentile")][4], "fraction")
+        # DGS10 rises 1bp a month and is the highest of its window; DGS2 is flat
+        self.assertEqual(float(self.table(files, "breakeven")[(last, "percentile")][3]), 1.0)
+        yc = self.table(files, "yield_curve")
+        self.assertAlmostEqual(float(yc[(last, "chg_3m_10y")][3]), 0.0003, places=6)
+        self.assertAlmostEqual(float(yc[(last, "chg_3m_2y")][3]), 0.0, places=6)
+
     def test_cpi_gap_stays_missing(self):
         ps = write_macro(self.d / "m.csv", cpi_gap="2022-06")
         files = me.build(self.d / "m.csv", "x")
@@ -244,6 +260,9 @@ class MonthToDate(unittest.TestCase):
         self.assertAlmostEqual(float(yc["level"][3]), 0.03)
         erp = {r[2]: r for r in files["erp"] if r[0] == through}
         self.assertAlmostEqual(float(erp["level"][3]), 1 / 30 - 0.05, places=6)
+        self.assertIn("percentile", vol)
+        self.assertAlmostEqual(float(yc["chg_3m_10y"][3]), 0.05 - (0.03 + 0.0001 * (len(self.ps) - 3)), places=6)
+        self.assertAlmostEqual(float(yc["chg_3m_2y"][3]), 0.0, places=6)
         for ent in ("real_rate", "momentum"):  # monthly inputs: no month-to-date reading
             self.assertFalse(any(r[0] == through for r in files[ent]), ent)
 

@@ -78,6 +78,10 @@ Then load the CSV with **Load data files**. For Team 3, `--windows` picks the wi
 ## Using the page
 
 - **Signal history**: click a signal in the chart (or select it and press Enter) to open its history below the chart. It draws every date the owner has sent, with no filling between dates. Switch between **Score** and **Level**, pick **1Y / 3Y / 5Y / All**, hover or use the arrow keys to read each point, and open **Show the numbers** for a table. To get a line, send several dates in your CSV; with one date the panel shows a single point.
+- **What changed since last month**: the three signals whose score moved most since the previous month, and whether any crossed into an unusual zone.
+- **Signal details extras**: under each score, its change since last month; under each reading, its percentile in plain words ("Higher than 98% of the past 10 years"); for the yield curve, the regime over the last 3 months (bull or bear, steepening or flattening).
+- **Signal history at a glance**: a heatmap with one row per signal and one column per month (5Y, 10Y, 20Y or All), colored like the main chart, plus a row marking months when the memo's combined warning (low VIX and tight credit) was on.
+- **How each signal is built**: a table of each signal's formula, source, score window and update schedule.
 - **Cutoff slider**: changes the score that counts as unusual (1.0 to 2.5; the memo uses 1.5). The chart, takeaway, counts and combined warning update together, and the page says when a custom cutoff is in use. It applies to this view only and resets on reload.
 - **Asset allocation**: pick any two portfolios (reference, suggested or a what-if) to compare their weights, expected return and volatility. A what-if with no solution says so instead of showing weights. **Where the risk comes from** follows the right-hand pick.
 - **Fund report cards**: filter stock or bond funds, sort by return, Sharpe ratio, volatility, alpha or (with benchmarks) active return and information ratio, and tick up to three funds to see them side by side.
