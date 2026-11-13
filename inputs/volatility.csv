@@ -2351,10 +2351,10 @@ date,entity,metric,value,unit,release_id,data_status,validated
 2026-10,volatility,chg_1y,-1.19061,index,public_2026-11-13,real,FALSE
 2026-10,volatility,z_score_standard,-0.261849,sd,public_2026-11-13,real,FALSE
 2026-10,volatility,percentile,0.458333,fraction,public_2026-11-13,real,FALSE
-2026-11-11,volatility,level,21.16,index,public_2026-11-13,real,FALSE
-2026-11-11,volatility,z_score,0.691007,sd,public_2026-11-13,real,FALSE
-2026-11-11,volatility,chg_3m,5.93048,index,public_2026-11-13,real,FALSE
-2026-11-11,volatility,chg_1y,1.3905,index,public_2026-11-13,real,FALSE
-2026-11-11,volatility,z_score_standard,0.373378,sd,public_2026-11-13,real,FALSE
-2026-11-11,volatility,percentile,0.733333,fraction,public_2026-11-13,real,FALSE
-2026-11-11,volatility,mtd_days,8,days,public_2026-11-13,real,FALSE
+2026-11-12,volatility,level,20.8867,index,public_2026-11-13,real,FALSE
+2026-11-12,volatility,z_score,0.615643,sd,public_2026-11-13,real,FALSE
+2026-11-12,volatility,chg_3m,5.65714,index,public_2026-11-13,real,FALSE
+2026-11-12,volatility,chg_1y,1.11717,index,public_2026-11-13,real,FALSE
+2026-11-12,volatility,z_score_standard,0.332558,sd,public_2026-11-13,real,FALSE
+2026-11-12,volatility,percentile,0.733333,fraction,public_2026-11-13,real,FALSE
+2026-11-12,volatility,mtd_days,9,days,public_2026-11-13,real,FALSE
