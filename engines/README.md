@@ -14,7 +14,7 @@ python engines/test_macro_engines.py
 
 `fetch` downloads the public source files into `<folder>`. It then writes `macro_monthly.csv` in Team 1's long format (`period, series_id, value, source_id`) and `pull_info.json`, which holds the release id `public_<date>`.
 
-`build` writes `<out folder>/<entity>.csv`, one file for each of the eight signals. On the dashboard, select all eight files with **Load data files**.
+`build` writes `<out folder>/<entity>.csv`, one file for each of the eight signals. The public page loads the files in `inputs/` by itself (see "Updating the public page" below). For a local copy of the page, select the files with **Load data files**.
 
 To take stock market returns from a Team 1 release instead of the French file, add `--team1-release <release folder>` to `build`. The release's `MANIFEST.json` must say `validation_passed: true`. The momentum rows then carry that release's id and `data_status`.
 
@@ -50,6 +50,15 @@ Every signal has `level`, `z_score`, `chg_3m` and `chg_1y` for each month, so th
 - **Momentum.** This uses the US market only. The memo also names the Nasdaq-100 and sector indices.
 - **VIX check against the memo.** On daily VIX over the 10 years to Sep 22, 2026, the usual score of 14.28 is −0.60; the memo says −0.66. The memo's formula gives a downside deviation of 3.75 and a score of −1.16; the memo says about 3.20 and −1.63. The memo's figures look rounded or come from a different window. The script follows the memo's formula as written, on monthly averages.
 
-## Data and sharing
+## Updating the public page
 
-All inputs are public. ICE BofA data has its own terms of use. Check those terms before the CSVs are put on the public page.
+The public page reads `inputs/<entity>.csv` automatically. To refresh it:
+
+```bash
+python engines/macro_engines.py fetch --raw <folder outside the repo>
+python engines/macro_engines.py build --macro <folder>/macro_monthly.csv --public -o inputs
+```
+
+Then commit the eight files in `inputs/` and push to `main` and `gh-pages`.
+
+All inputs are public. ICE BofA data has its own terms of use, so `--public` leaves out the `hy_oas` and `ig_oas` metrics. The credit score does not use them. Without `--public`, they stay in your local files.

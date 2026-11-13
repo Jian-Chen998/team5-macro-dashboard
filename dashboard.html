@@ -440,7 +440,8 @@ td{border-bottom:1px solid var(--grid)}
       <li><b>Long-term vs short-term.</b> Long-term signals show what markets pay investors to hold risk over years. Short-term signals can change quickly and do not predict near-term direction on their own.</li>
       <li><b>Changes.</b> 3-month and 1-year columns show how much the reading moved, in percentage points (pp) for rates and spreads.</li>
       <li><b>Review.</b> "Pending review" means Team 4 has not yet checked the number. Numbers may be updated after review.</li>
-      <li><b>VIX.</b> The reading of 14.28 and score of &minus;1.63 come from the strategy memo of Sep 22, 2026. The memo measures VIX against its downside variation only; the usual score would be &minus;0.66.</li>
+      <li><b>VIX.</b> As in the strategy memo of Sep 22, 2026, the VIX is scored against its downside variation only. The memo's own example (14.28, score &minus;1.63; usual score &minus;0.66) is built in and is replaced when newer VIX data is loaded.</li>
+      <li><b>Data.</b> Signals are monthly averages from public sources (FRED, Shiller CAPE, French Data Library). Each is scored against its own past 10 years (3 years for the real rate). Data that was never published stays blank; for example, there was no October 2025 CPI.</li>
       <li class="detail"><b>Data format.</b> Following Team 1's conventions, rates are stored as decimals (0.025 means 2.5%). Every row carries a <code>data_status</code> (real, synthetic or placeholder) and a <code>release_id</code>. Only real rows are read as signals.</li>
     </ul>
   </section>

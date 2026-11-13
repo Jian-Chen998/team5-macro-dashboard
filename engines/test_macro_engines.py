@@ -186,6 +186,17 @@ class Build(unittest.TestCase):
         self.assertEqual(rows[0], me.HEADER)
         self.assertEqual(rows[1][5], "public_2026-11-13")
 
+    def test_public_files_leave_out_ice_spreads(self):
+        ps = write_macro(self.d / "m.csv")
+        m = pd.read_csv(self.d / "m.csv")
+        extra = pd.DataFrame([[p, sid, 0.03, "fred"] for p in ps for sid in ("BAMLH0A0HYM2", "BAMLC0A0CM")],
+                             columns=m.columns)
+        pd.concat([m, extra]).to_csv(self.d / "m.csv", index=False)
+        full = {r[2] for r in me.build(self.d / "m.csv", "x")["credit"]}
+        pub = {r[2] for r in me.build(self.d / "m.csv", "x", public=True)["credit"]}
+        self.assertTrue({"hy_oas", "ig_oas"} <= full)
+        self.assertEqual(pub, full - {"hy_oas", "ig_oas"})
+
     def test_duplicate_rows_are_rejected(self):
         pd.DataFrame([["2026-01", "DGS10", 0.04, "fred"], ["2026-01", "DGS10", 0.05, "fred"]],
                      columns=["period", "series_id", "value", "source_id"]).to_csv(self.d / "m.csv", index=False)

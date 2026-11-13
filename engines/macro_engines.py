@@ -320,7 +320,11 @@ def percentile(s, window):
     return pd.Series(out, index=s.index)
 
 
-def build(macro_path, release_id, team1_release=None):
+# ICE BofA data has its own terms of use, so the public files leave these metrics out.
+NOT_PUBLIC = {"hy_oas", "ig_oas"}
+
+
+def build(macro_path, release_id, team1_release=None, public=False):
     w = load_macro(macro_path)
     market, m_release, m_status = None, release_id, "real"
     if team1_release:
@@ -348,7 +352,7 @@ def build(macro_path, release_id, team1_release=None):
         if ent == "erp":
             cols["percentile_10y"] = percentile(mets["level"], 120)
         for k, s in mets.items():
-            if k != "level":
+            if k != "level" and not (public and k in NOT_PUBLIC):
                 cols[k] = s
         rel, status = (m_release, m_status) if ent == "momentum" else (release_id, "real")
         rows = []
@@ -387,6 +391,8 @@ def main(argv=None):
     b.add_argument("--macro", required=True, help="macro_monthly.csv from fetch (or from Team 1)")
     b.add_argument("--release-id", help="release id for the rows; default: from pull_info.json next to --macro")
     b.add_argument("--team1-release", help="Team 1 release folder; momentum then uses its factors_monthly.csv")
+    b.add_argument("--public", action="store_true",
+                   help="leave out the ICE BofA spreads (hy_oas, ig_oas), for files on the public page")
     b.add_argument("-o", "--output", required=True, help="folder for <entity>.csv files")
     a = ap.parse_args(argv)
     try:
@@ -399,7 +405,7 @@ def main(argv=None):
                 if not info.exists():
                     raise EngineError("give --release-id, or keep pull_info.json next to the macro file")
                 rid = json.loads(info.read_text(encoding="utf-8"))["release_id"]
-            write(build(a.macro, rid, a.team1_release), a.output)
+            write(build(a.macro, rid, a.team1_release, a.public), a.output)
     except EngineError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
