@@ -198,6 +198,7 @@ body.details th.detail, body.details td.detail{display:table-cell}
 .review.ok::before{content:"\2713 ";color:var(--good);font-weight:700}
 .waiting{padding:14px 16px;border:1px dashed var(--axis);border-radius:10px;color:var(--ink-2)}
 .warn{padding:9px 12px;border-radius:8px;background:var(--high-band);margin:0 0 12px;font-size:13px}
+.pending{padding:9px 12px;border-radius:8px;background:var(--low-band);margin:0 0 12px;font-size:13px}
 .howto{font-size:13px;color:var(--ink-2);margin:0 0 12px}
 .notes{margin:12px 0 0;font-size:12px;color:var(--ink-2);padding-left:18px}
 .notes li{margin:3px 0}
@@ -1238,6 +1239,14 @@ function notRealWarning(all){
   var bad = all.filter(function(r){ return r.data_status!=='real' && r.data_status!=='hypothetical'; });
   return bad.length ? '<div class="warn"><b>Not a client result.</b> This section includes test or placeholder data.</div>' : '';
 }
+// Real results that Team 4 has not checked yet carry a visible "pending validation" label.
+function reviewNotice(all){
+  var real = all.filter(function(r){ return r.data_status==='real'; });
+  if(!real.length) return '';
+  var open = real.filter(function(r){ return String(r.validated).toUpperCase()!=='TRUE'; }).length;
+  return open ? '<div class="pending"><b>Pending Team 4 validation.</b> Team 4 has not finished reviewing these results, so numbers may change after review.</div>'
+              : '<div class="pending ok"><b>Checked by Team 4.</b></div>';
+}
 function flatten(byEntity){
   var all = [];
   Object.keys(byEntity).forEach(function(k){ Object.keys(byEntity[k]).forEach(function(m){ all.push(byEntity[k][m]); }); });
@@ -1265,7 +1274,7 @@ function renderAllocation(){
   if(records.indexOf(allocR)<0) allocR = records[Math.min(1, records.length-1)];
   var L = allocL, R = allocR;
   var opts = function(cur){ return records.map(function(id){ return '<option value="'+esc(id)+'"'+(id===cur?' selected':'')+'>'+esc(recordLabel(id))+'</option>'; }).join(''); };
-  var h = notRealWarning(all) +
+  var h = notRealWarning(all) + reviewNotice(all) +
     '<div class="toolbar noprint" style="margin-bottom:10px;align-items:center">'+
     '<label>Compare <select id="allocL">'+opts(L)+'</select></label>'+
     '<label>with <select id="allocR">'+opts(R)+'</select></label>'+
@@ -1399,7 +1408,7 @@ function renderFunds(){
   var sel = function(id, label, list, cur){
     return '<label>'+label+' <select id="'+id+'">'+list.map(function(o){ return '<option value="'+esc(o[0])+'"'+(o[0]===cur?' selected':'')+'>'+esc(o[1])+'</option>'; }).join('')+'</select></label>';
   };
-  var h = notRealWarning(all) +
+  var h = notRealWarning(all) + reviewNotice(all) +
     '<p class="howto">Market sensitivity of 1.0 means the fund moves with the market; above 1.0, it moves more. A positive tilt means the fund leans toward small, value or momentum stocks. Alpha is the return left after these effects.</p>'+
     '<div class="toolbar noprint" style="margin-bottom:6px;align-items:center">'+
     sel('fundWindow', 'Period:', windows.map(function(x){ return [x, WINDOW_LABEL[x]||x]; }), w)+
