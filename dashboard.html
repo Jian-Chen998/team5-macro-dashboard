@@ -1477,6 +1477,8 @@ function renderFunds(){
     var r = data[f], m = model(f), gg = function(k){ return g(f, k); };
     var st = gg('status'), ok = st && st.value==='ok', first = st || p(f, 'status');
     var note = !st ? 'No factor result' : (ok ? (m==='EquityBeta' ? 'Bond fund: stock market exposure only' : '') : 'Not enough history for a result');
+    // Team 3 has not finished the fixed-income factor attribution for bond funds yet.
+    if(isBond(f)) note += (note ? '. ' : '') + 'Fixed-income attribution pending (Team 3)';
     var proxy = num(gg('proxy_obs')), corr = num(gg('correlation'));
     var on = fundPick.indexOf(f)>=0, full = fundPick.length>=3 && !on;
     h += '<tr'+(on?' class="picked"':'')+'><td class="noprint"><input type="checkbox" class="pick" data-f="'+esc(f)+'" aria-label="Compare '+esc(f)+'"'+
@@ -1548,7 +1550,7 @@ function renderFunds(){
     '<li>Returns are after fund expenses, but before advisory fees and taxes.</li>'+
     '<li>Alpha is per month and not annualized. Team 3 is still reviewing which differences are meaningful.</li>'+
     (all.some(function(r){ return /\.perf\.sharpe_ci_low$/.test(r.metric); }) ? '<li>The range under each Sharpe ratio is its 95% interval. When two funds\' ranges overlap, the difference between them may be chance.</li>' : '')+
-    '<li>For bond funds, only their link to the stock market is shown. Their alpha is not a measure of manager skill.</li>'+
+    '<li>For bond funds, only their link to the stock market is shown. Their alpha is not a measure of manager skill. Team 3\'s fixed-income factor attribution for bond funds is pending and will be added when it is ready.</li>'+
     '<li>"Not enough history" means no result, not a weak result.'+(dates.length?' Data through '+esc(prettyDate(dates[dates.length-1]))+'.':'')+'</li>'+
     (hasBench ? '<li>Each benchmark fund is an index fund (ETF) that tracks an index close to the fund\'s own benchmark. Its returns are after the ETF\'s fees, so an active return near zero means "about the same as the ETF", not "the same as the index".</li>'+
       '<li>Some benchmark funds changed their index or strategy over time. Team 3 decides which months are compared, and fewer months than the period can mean the benchmark fund\'s history is shorter.</li>' : '')+
