@@ -1472,7 +1472,10 @@ function metaLine(all){
 }
 function notRealWarning(all){
   var bad = all.filter(function(r){ return r.data_status!=='real' && r.data_status!=='hypothetical'; });
-  return bad.length ? '<div class="warn"><b>Not a client result.</b> This section includes test or placeholder data.</div>' : '';
+  if(!bad.length) return '';
+  var sample = bad.every(function(r){ return r.data_status==='synthetic'; });
+  return '<div class="warn"><b>Not a client result.</b> '+(sample ? 'Illustrative sample data only; the real results are kept internal.'
+    : 'This section includes test or placeholder data.')+'</div>';
 }
 // Real results that Team 4 has not checked yet carry a visible "pending validation" label.
 function reviewNotice(all){
@@ -1882,12 +1885,15 @@ render();
 
 // When served from a web address (e.g. GitHub Pages), read inputs/<engine id>.csv automatically.
 // Opened as a local file, browsers block this, so the "Load data files" button is used instead.
+// Team 2 and Team 3: their real files if published; otherwise the illustrative samples, tagged "Not a client result".
 if(/^https?:$/.test(location.protocol)){
-  ENGINES.map(function(e){ return e.id; }).concat(['allocation','funds']).forEach(function(id){
-    fetch('inputs/'+id+'.csv', {cache:'no-store'})
-      .then(function(r){ return r.ok ? r.text() : ''; })
-      .then(function(t){ if(t){ rows = rows.concat(parseCSV(t)); render(); } })
-      .catch(function(){});
+  var grab = function(path){
+    return fetch(path, {cache:'no-store'}).then(function(r){ return r.ok ? r.text() : ''; }).catch(function(){ return ''; });
+  };
+  var addRows = function(t){ if(t){ rows = rows.concat(parseCSV(t)); render(); } };
+  ENGINES.forEach(function(e){ grab('inputs/'+e.id+'.csv').then(addRows); });
+  ['allocation','funds'].forEach(function(id){
+    grab('inputs/'+id+'.csv').then(function(t){ return t || grab('inputs/samples/'+id+'_sample.csv'); }).then(addRows);
   });
 }
 </script>
