@@ -3684,9 +3684,9 @@ date,entity,metric,value,unit,release_id,data_status,validated
 2026-10,erp,chg_3m,-0.00522521,decimal,public_2026-11-24,real,FALSE
 2026-10,erp,chg_1y,-0.011271,decimal,public_2026-11-24,real,FALSE
 2026-10,erp,percentile,0.00833333,fraction,public_2026-11-24,real,FALSE
-2026-11-20,erp,level,-0.0249446,decimal,public_2026-11-24,real,FALSE
-2026-11-20,erp,z_score,-1.85515,sd,public_2026-11-24,real,FALSE
-2026-11-20,erp,chg_3m,-0.0024403,decimal,public_2026-11-24,real,FALSE
-2026-11-20,erp,chg_1y,-0.00954679,decimal,public_2026-11-24,real,FALSE
-2026-11-20,erp,percentile,0.025,fraction,public_2026-11-24,real,FALSE
-2026-11-20,erp,mtd_days,14,days,public_2026-11-24,real,FALSE
+2026-11-23,erp,level,-0.0248998,decimal,public_2026-11-24,real,FALSE
+2026-11-23,erp,z_score,-1.85211,sd,public_2026-11-24,real,FALSE
+2026-11-23,erp,chg_3m,-0.00239554,decimal,public_2026-11-24,real,FALSE
+2026-11-23,erp,chg_1y,-0.00950203,decimal,public_2026-11-24,real,FALSE
+2026-11-23,erp,percentile,0.025,fraction,public_2026-11-24,real,FALSE
+2026-11-23,erp,mtd_days,15,days,public_2026-11-24,real,FALSE
